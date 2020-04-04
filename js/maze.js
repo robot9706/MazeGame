@@ -435,14 +435,7 @@ function maze_buildMaze(scene, maze) {
         ],
         collision: collision,
         artifacts: artifacts,
-        setColor: null
     }
-
-    maze.setColor = (function(color) {
-        for (var i = 0; i < this.meshes.length; i++) {
-            this.meshes[i].material.color.set(color);
-        }
-    }).bind(maze);
 
     return maze;
 }

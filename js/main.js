@@ -78,14 +78,12 @@ function main_init() {
     });
 
     window.addEventListener('resize', main_handleWindowResize, false);
-    requestAnimationFrame(main_render);
-
-    var xd = new THREE.PointLight(0xFFFFFF, 1, 0);
-    xd.position.set(2.5, 0.5, 2.5)
-    //scene.add(xd);
 
     // Start the game
     game_start();
+
+    requestAnimationFrame(main_render);
+
 }
 
 function main_handleWindowResize() {
@@ -100,13 +98,10 @@ function main_handleWindowResize() {
 }
 
 var main_render = function () {
-    requestAnimationFrame(main_render);
-
     var delta = clock.getDelta();
 
     player_update(delta);
-    skybox_update(camera);
-    game_update();
+    game_update(delta);
 
     // Move light
     var cameraDirection = camControls.getDirection(new THREE.Vector3());
@@ -127,4 +122,12 @@ var main_render = function () {
     renderer.autoClear = false;
     camera.layers.set(1);
     renderer.render(scene, camera);
+
+    requestAnimationFrame(main_render);
+};
+
+Math.lerp = function (value1, value2, amount) {
+	amount = amount < 0 ? 0 : amount;
+	amount = amount > 1 ? 1 : amount;
+	return value1 + (value2 - value1) * amount;
 };

@@ -1,5 +1,7 @@
 var ID = 0;
 
+const ARTIFACT_COLOR = 0x6666FF;
+
 function artifact_createMesh(geom) {
     var meshMaterial = new THREE.MeshBasicMaterial({color: 0xFFFFFF});
     var mesh = new THREE.Mesh(geom, meshMaterial);
@@ -48,11 +50,12 @@ function artifact_generateMesh() {
     var resultBSP = mesh1BSP.intersect(mesh2BSP);
 
     var material = new THREE.MeshPhongMaterial({
-        color: 0x6666FF,
+        color: ARTIFACT_COLOR,
         transparent: true,
         opacity: 0.9,
         specular: 0x222222
     });
+    material.side = THREE.DoubleSide;
     var result = resultBSP.toMesh(material);
     result.geometry.computeFaceNormals();
 
@@ -79,6 +82,7 @@ function artifact_create(sourceData, isGhost) {
     var artifact = {
         data: data,
         animation: null,
+        light: light,
         isGhost: (isGhost != null ? isGhost : false)
     };
 
@@ -92,6 +96,8 @@ function artifact_create(sourceData, isGhost) {
 
             if (tweenData.target.isGhost) {
                 material.opacity = 0.25 + ((Math.sin(tweenData.x * Math.PI * 15) + 1) * 0.3)
+            } else {
+                material.opacity = 0.9;
             }
         });
     tween.start();

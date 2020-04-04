@@ -1,4 +1,6 @@
-var PLAYER_MOVE_SPEED = 2.5;
+const PLAYER_MOVE_SPEED = 2.5;
+
+var playerHeadTime = 0;
 
 function player_checkCollision(atPosition) {
     var mapX = Math.floor(atPosition.x);
@@ -80,7 +82,15 @@ function player_update(delta) {
 
     moveDir.normalize();
 
+    var targetHeadY = 0.5;
     if (moveDir.length() != 0) {
         player_handleMove(moveDir, delta);
+
+        playerHeadTime += delta;
+        camera.position.y = 0.5 + Math.sin(playerHeadTime * 10) * 0.03;
+    } else {
+        playerHeadTime = 0;
+
+        camera.position.y = Math.lerp(camera.position.y, 0.5, delta * 10);
     }
 }

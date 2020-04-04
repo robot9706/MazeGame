@@ -1,36 +1,25 @@
 // Textúrák: https://opengameart.org/content/cloudy-skyboxes
 
-var textures = [
-    "sky_side.jpg",
-    "sky_side.jpg",
-    "bluecloud_up.jpg",
-    "sky_side.jpg",
-    "sky_side.jpg",
-    "sky_side.jpg",
-]
-
 var skybox;
 
 function skybox_init(scene) {
-    var materialArray = [];
+    var material = new THREE.ShaderMaterial({
+        uniforms: {
+            TOP_COLOR: {
+                value: new THREE.Color(0xF4FAFF)
+            },
+            BOTTOM_COLOR: {
+                value: new THREE.Color(0x76C6FC)
+            }
+        },
+        vertexShader: document.getElementById('sky_vs').textContent,
+        fragmentShader: document.getElementById('sky_fs').textContent,
+    });
+    material.side = THREE.DoubleSide;
 
-    for (var i = 0; i < 6; i++) {
-        var texture = new THREE.TextureLoader().load("assets/" + textures[i]);
-        var material = new THREE.MeshBasicMaterial({
-            map: texture
-        });
-
-        material.side = THREE.BackSide;
-
-        materialArray.push(material);
-    }
-
-    var geometry = new THREE.BoxGeometry(500, 500, 500);
-    skybox = new THREE.Mesh(geometry, materialArray );
+    var geometry = new THREE.SphereGeometry(0.5, 32, 32);
+    skybox = new THREE.Mesh(geometry, material);
+    skybox.scale.set(200,200,200);
 
     scene.add(skybox);
-}
-
-function skybox_update(camera) {
-    skybox.position = camera.position;
 }

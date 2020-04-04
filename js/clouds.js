@@ -38,12 +38,12 @@ function clouds_randomCloud() {
 
 function clouds_create(scene) {
     var centerPos = 8;
-    var sizeDev = 128;
+    var sizeDev = 64;
 
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 10; i++) {
         var rndCloud = clouds_randomCloud();
         rndCloud.scale.set(2,2,2);
-        rndCloud.position.set(clouds_random(centerPos, sizeDev), 50, clouds_random(centerPos, sizeDev));
+        rndCloud.position.set(clouds_random(centerPos, sizeDev), 75, clouds_random(centerPos, sizeDev));
         rndCloud.layers.set(1);
         scene.add(rndCloud);
     }
