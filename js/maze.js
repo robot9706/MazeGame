@@ -3,7 +3,7 @@ const MASK_RIGHT = 0x04;
 const MASK_UP = 0x02;
 const MASK_DOWN = 0x01;
 
-const MAZE_ARTIFACT_COUNT = 0;
+const MAZE_ARTIFACT_COUNT = 3;
 const MAZE_STATUES = [
     {
         key: "monkey",
