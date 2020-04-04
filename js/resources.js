@@ -18,6 +18,18 @@ var res = {
     monkey: {
         type: "obj",
         data: null
+    },
+    skeleton: {
+        type: "obj",
+        data: null
+    },
+    skeleton_texture: {
+        type: "texture",
+        data: null
+    },
+    key: {
+        type: "obj",
+        data: null
     }
 };
 var keys = Object.keys(res);

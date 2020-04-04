@@ -24,7 +24,7 @@ function main_start() {
     renderer.setSize(WIDTH, HEIGHT);
     renderer.setClearColor(0x000000);
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
+    document.getElementById("canvas").appendChild(renderer.domElement);
 
     renderer.shadowMapEnabled = true;
     renderer.shadowMapSoft = true;
@@ -76,15 +76,24 @@ function main_start() {
     // Create the camera controller
     camControls = new THREE.PointerLockControls(camera, document.body);
     scene.add(camControls.getObject());
-    camControls.lock();
-    document.addEventListener("click", function(e) {
-        camControls.lock();
+
+    camControls.addEventListener("lock", function() {
+        document.getElementById("menu").style.display = "none";
+    });
+    camControls.addEventListener("unlock", function() {
+        document.getElementById("menu").style.display = "block";
     });
 
     window.addEventListener('resize', main_handleWindowResize, false);
 
     // Start the game
     game_start();
+
+    document.getElementById("btn_loading").style.display = "none";
+    document.getElementById("btn_start").style.display = "block";
+    document.getElementById("btn_start").addEventListener("click", function(e){
+        camControls.lock();
+    });
 
     requestAnimationFrame(main_render);
 }

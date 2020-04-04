@@ -3,11 +3,15 @@ const MASK_RIGHT = 0x04;
 const MASK_UP = 0x02;
 const MASK_DOWN = 0x01;
 
-const MAZE_ARTIFACT_COUNT = 6;
+const MAZE_ARTIFACT_COUNT = 0;
 const MAZE_STATUES = [
     {
         key: "monkey",
-        count: 3
+        count: 2,
+    },
+    {
+        key: "skeleton",
+        count: 2
     }
 ]
 
@@ -447,9 +451,11 @@ function maze_buildMaze(scene, maze) {
             lootPos.splice(spawnPosIndex, 1);
             var dataCopy = res[statue.key].data.clone();
             dataCopy.position.set(pos.x + 0.5 + pos.corner.x * 0.5, 0.5, pos.y + 0.5 + pos.corner.y * 0.5);
-            dataCopy.scale.set(0.9, 0.9, 0.9);
             maze_cornerToRotY(dataCopy, pos.corner);
-            maze_createStatueMaterial(dataCopy);
+            maze_createStatueMaterial(dataCopy, statue.key);
+
+            dataCopy.castShadow = true;
+            dataCopy.receiveShadow = true;
 
             scene.add(dataCopy);
         }
@@ -468,14 +474,21 @@ function maze_buildMaze(scene, maze) {
     return maze;
 }
 
-function maze_createStatueMaterial(obj) {
+function maze_createStatueMaterial(obj, key) {
     var newMaterial = new THREE.MeshPhongMaterial( { 
         color: 0xaaaaaa,
         specular: 0x888888,
         shininess: 100
     });
+    if (key == "skeleton") {
+        newMaterial.map = res.skeleton_texture.data;
+        newMaterial.transparent = true;
+        newMaterial.side = THREE.DoubleSide;
+    }
     obj.material = newMaterial;
     obj.traverse(function (child) {
+        child.castShadow = true;
+        child.receiveShadow = true;
         child.material = newMaterial;
     });
     obj.material.needsUpdate = true;

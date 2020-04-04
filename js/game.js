@@ -32,9 +32,45 @@ function game_start() {
     game_selectArtifact();
 }
 
+function game_end() {
+    var key = res.key.data.clone();
+
+    var newMaterial = new THREE.MeshPhongMaterial( { 
+        color: 0xFFD700,
+        specular: 0x888888,
+        specularMap: res.grass_specular.data
+    });
+    key.material = newMaterial;
+    key.traverse(function (child) {
+        child.castShadow = true;
+        child.material = newMaterial;
+
+        child.uvsNeedUpdate = true;
+    });
+    key.material.needsUpdate = true;
+    key.needsUpdate = true;
+
+    key.position.set(1.5, 0.5, 1.5);
+    scene.add(key);
+
+    var light = new THREE.PointLight(0xFFD700, 0.6, 1);
+    key.add(light);
+
+    var tweenData = { x: 0, target: key }
+    var tween = new TWEEN.Tween(tweenData)
+        .to({ x: 1 }, 5000)
+        .repeat( Infinity )
+        .onUpdate(function() {
+            tweenData.target.position.y = 0.4 + Math.sin(tweenData.x * Math.PI * 2) * 0.1;
+            tweenData.target.rotation.y = Math.PI * 2 * tweenData.x;
+        });
+    tween.start();
+}
+
 function game_selectArtifact() {
     var artifacts = currentMaze.artifacts;
     if (artifacts.length == 0) {
+        game_end();
         return;
     }
 
@@ -87,14 +123,15 @@ function game_update(delta) {
 }
 
 function game_artifactPick(current) {
+    console.time("A");
     if (current.artifact === artifactGhost) {
         if (pickedArtifact != null) {
             var pickedID = parseInt(pickedArtifact.artifact.data.name);
             var wantedID = parseInt(artifactGhost.data.name);
 
             if (pickedID == wantedID) {
-                scene.remove(artifactGhost.data);
-                scene.remove(pickedArtifact);
+                artifactGhost.data.visible = false;
+                pickedArtifact.visible = false;
 
                 artifactGhost.animation.stop();
                 pickedArtifact.artifact.animation.stop();
@@ -126,4 +163,5 @@ function game_artifactPick(current) {
         current.artifact.isGhost = true;
         pickedArtifact = current;
     }
+    console.timeEnd("A")
 }
