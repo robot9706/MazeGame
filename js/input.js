@@ -22,6 +22,7 @@ function input_init() {
     input_addInput("BACKWARD", 83);
     input_addInput("LEFT", 65);
     input_addInput("RIGHT", 68);
+    input_addInput("RUN", 16);
     input_addInput("PICK", 32);
     input_addInput("PICK_MOUSE", -1);
 

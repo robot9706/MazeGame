@@ -7,6 +7,10 @@ var clock;
 var shadowLight;
 
 function main_init() {
+    resources_load(main_start);
+}
+
+function main_start() {
     HEIGHT = window.innerHeight;
     WIDTH = window.innerWidth;
     aspectRatio = WIDTH / HEIGHT;
@@ -83,7 +87,6 @@ function main_init() {
     game_start();
 
     requestAnimationFrame(main_render);
-
 }
 
 function main_handleWindowResize() {

@@ -1,3 +1,5 @@
+const MAZE_SIZE = 6;
+
 var currentMaze;
 
 var artifactGhost;
@@ -13,11 +15,8 @@ function game_start() {
     isPicking = false;
 
     // Create the pick sprite
-    var pickTexture = new THREE.TextureLoader().load("assets/pick.png");
-    pickTexture.minFilter = THREE.NearestFilter;
-    pickTexture.magFilter = THREE.NearestFilter;
     var pickSpriteMaterial = new THREE.SpriteMaterial({
-        map: pickTexture,
+        map: res.pick.data,
         depthTest: false
     });
     pickSprite = new THREE.Sprite(pickSpriteMaterial);
@@ -27,7 +26,7 @@ function game_start() {
     pickSprite.position.set(0, 0, -2);
 
     // Generate a maze
-    genData = maze_generate(8, 8);
+    genData = maze_generate(MAZE_SIZE, MAZE_SIZE);
     currentMaze = maze_buildMaze(scene, genData);
 
     game_selectArtifact();

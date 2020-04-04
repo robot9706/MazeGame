@@ -1,4 +1,5 @@
 const PLAYER_MOVE_SPEED = 2.5;
+const PLAYER_MOVE_SPEED_FAST_MUL = 2;
 
 var playerHeadTime = 0;
 
@@ -25,9 +26,11 @@ function player_checkCollision(atPosition) {
 function player_handleMove(moveDir, delta) {
     var newPos = new THREE.Vector3();
 
+    var speed = PLAYER_MOVE_SPEED * (input_isDown("RUN") ? PLAYER_MOVE_SPEED_FAST_MUL : 1);
+
     //Move XZ
     newPos.copy(camera.position);
-    newPos.addScaledVector(moveDir, PLAYER_MOVE_SPEED * delta);
+    newPos.addScaledVector(moveDir, speed * delta);
 
     if (!player_checkCollision(newPos)) {
         camera.position.copy(newPos);
@@ -36,7 +39,7 @@ function player_handleMove(moveDir, delta) {
 
     //Move X
     newPos.copy(camera.position);
-    newPos.addScaledVector(new THREE.Vector3(moveDir.x, 0, 0), PLAYER_MOVE_SPEED * delta);
+    newPos.addScaledVector(new THREE.Vector3(moveDir.x, 0, 0), speed * delta);
 
     if (!player_checkCollision(newPos)) {
         camera.position.copy(newPos);
@@ -45,7 +48,7 @@ function player_handleMove(moveDir, delta) {
 
     //Move Z
     newPos.copy(camera.position);
-    newPos.addScaledVector(new THREE.Vector3(0, 0, moveDir.z), PLAYER_MOVE_SPEED * delta);
+    newPos.addScaledVector(new THREE.Vector3(0, 0, moveDir.z), speed * delta);
 
     if (!player_checkCollision(newPos)) {
         camera.position.copy(newPos);

@@ -4,6 +4,12 @@ const MASK_UP = 0x02;
 const MASK_DOWN = 0x01;
 
 const MAZE_ARTIFACT_COUNT = 6;
+const MAZE_STATUES = [
+    {
+        key: "monkey",
+        count: 3
+    }
+]
 
 function maze_helperGetCell(cells, x, y, w, h) {
     if (x < 0 || y < 0 || x >= w || y >= h) {
@@ -158,15 +164,22 @@ function maze_generate(width, height) {
 
             var countX = 0;
             var countY = 0;
-            if (maze_checkBlock(blocks, x - 1, y, realWidth, realHeight)) countX++;
-            if (maze_checkBlock(blocks, x + 1, y, realWidth, realHeight)) countX++;
-            if (maze_checkBlock(blocks, x, y - 1, realWidth, realHeight)) countY++;
-            if (maze_checkBlock(blocks, x, y + 1, realWidth, realHeight)) countY++;
+            var dirX = 0;
+            var dirY = 0;
+            if (maze_checkBlock(blocks, x - 1, y, realWidth, realHeight)) { countX++; dirX--; }
+            if (maze_checkBlock(blocks, x + 1, y, realWidth, realHeight)) { countX++; dirX++; }
+            if (maze_checkBlock(blocks, x, y - 1, realWidth, realHeight)) { countY++; dirY--; }
+            if (maze_checkBlock(blocks, x, y + 1, realWidth, realHeight)) { countY++; dirY++; }
 
             if (countX + countY == 3 || (countX >= 1 && countY >= 1)) {
                 spawnPos.push({
                     x: x + mapOffset,
-                    y: y + mapOffset
+                    y: y + mapOffset,
+                    isCorner: (countX >= 1 && countY >= 1),
+                    corner: {
+                        x: dirX,
+                        y: (dirX != 0 ? 0 : dirY)
+                    }
                 })
             }
         }
@@ -346,35 +359,21 @@ function maze_buildMaze(scene, maze) {
     wallGeometry.uvsNeedUpdate = true;
 
     floorGeometry.computeFaceNormals();
-    //floorGeometry.computeVertexNormals();
 
     wallGeometry.computeFaceNormals();
-    //wallGeometry.computeVertexNormals();
-
-    var grassTexture = new THREE.TextureLoader().load("assets/grass.png");
-    grassTexture.minFilter = THREE.NearestFilter;
-    grassTexture.magFilter = THREE.NearestFilter;
-
-    var grassSpecularMap = new THREE.TextureLoader().load("assets/grass_specular.png");
-    grassSpecularMap.minFilter = THREE.NearestFilter;
-    grassSpecularMap.magFilter = THREE.NearestFilter;
-
-    var bushTexture = new THREE.TextureLoader().load("assets/bush.png");
-    bushTexture.minFilter = THREE.NearestFilter;
-    bushTexture.magFilter = THREE.NearestFilter;
 
     var floorMaterial = new THREE.MeshPhongMaterial({
-        map: grassTexture,
-        specularMap: grassSpecularMap,
+        map: res.grass.data,
+        specularMap: res.grass_specular.data,
         specular: 0x151515
     });
     var floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
-    floorMesh.castShadow = true; 
+    floorMesh.castShadow = true;
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
 
     var wallMaterial = new THREE.MeshPhongMaterial({
-        map: bushTexture
+        map: res.bush.data
     });
     var wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
     wallMesh.castShadow = true;
@@ -385,27 +384,23 @@ function maze_buildMaze(scene, maze) {
     var lootPos = maze.lootPos
 
     var artifacts = [];
-    for (var i = 0; i < MAZE_ARTIFACT_COUNT; i++)
-    {
+    for (var i = 0; i < MAZE_ARTIFACT_COUNT; i++) {
         if (lootPos.length == 0)
             break;
 
         var spawnPosIndex;
         var pos;
-        for (var j = 0; j < 10; j++)
-        {
+        for (var j = 0; j < 10; j++) {
             spawnPosIndex = Math.floor(Math.random() * lootPos.length);
             pos = lootPos[spawnPosIndex];
-            
-            if (artifacts.length == 0)
-            {
+
+            if (artifacts.length == 0) {
                 break;
             }
 
             var posOk = true;
             var worldPos = new THREE.Vector3(pos.x + 0.5, 0.5, pos.y + 0.5)
-            for (var k = 0; k < artifacts.length; k++)
-            {
+            for (var k = 0; k < artifacts.length; k++) {
                 var dist = artifacts[k].data.position.distanceTo(worldPos);
                 if (dist < 1.2) {
                     posOk = false;
@@ -427,6 +422,39 @@ function maze_buildMaze(scene, maze) {
         artifacts.push(artifact);
     }
 
+    // Generate statues
+    for (var i = 0; i < MAZE_STATUES.length; i++) {
+        if (lootPos.length == 0)
+            break;
+
+        var statue = MAZE_STATUES[i];
+        for (var j = 0; j < statue.count; j++) {
+            if (lootPos.length == 0)
+                break;
+
+            var spawnPosIndex;
+            var pos;
+
+            var tryIt = 0;
+            do {
+                spawnPosIndex = Math.floor(Math.random() * lootPos.length);
+                pos = lootPos[spawnPosIndex];
+            } while (!pos.isCorner && tryIt < 10);
+            if (!pos.isCorner) {
+                continue;
+            }
+
+            lootPos.splice(spawnPosIndex, 1);
+            var dataCopy = res[statue.key].data.clone();
+            dataCopy.position.set(pos.x + 0.5 + pos.corner.x * 0.5, 0.5, pos.y + 0.5 + pos.corner.y * 0.5);
+            dataCopy.scale.set(0.9, 0.9, 0.9);
+            maze_cornerToRotY(dataCopy, pos.corner);
+            maze_createStatueMaterial(dataCopy);
+
+            scene.add(dataCopy);
+        }
+    }
+
     var maze = {
         data: maze,
         meshes: [
@@ -438,6 +466,30 @@ function maze_buildMaze(scene, maze) {
     }
 
     return maze;
+}
+
+function maze_createStatueMaterial(obj) {
+    var newMaterial = new THREE.MeshPhongMaterial( { 
+        color: 0xaaaaaa,
+        specular: 0x888888,
+        shininess: 100
+    });
+    obj.material = newMaterial;
+    obj.traverse(function (child) {
+        child.material = newMaterial;
+    });
+    obj.material.needsUpdate = true;
+    obj.needsUpdate = true;
+}
+
+function maze_cornerToRotY(obj, corner) {
+    if (corner.x > 0) {
+        obj.rotation.set(0, Math.PI, 0);
+    } else if (corner.y < 0) {
+        obj.rotation.set(0, Math.PI / 2, 0);
+    } else if (corner.y > 0) {
+        obj.rotation.set(0, -Math.PI / 2, 0);
+    }
 }
 
 function maze_getCollisionBoxes(maze, centerX, centerY, range = 2) {
