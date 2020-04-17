@@ -28,7 +28,7 @@ function player_handleMove(moveDir, delta) {
 
     var speed = PLAYER_MOVE_SPEED * (input_isDown("RUN") ? PLAYER_MOVE_SPEED_FAST_MUL : 1);
 
-    //Move XZ
+    //XZ mozgás
     newPos.copy(camera.position);
     newPos.addScaledVector(moveDir, speed * delta);
 
@@ -37,7 +37,7 @@ function player_handleMove(moveDir, delta) {
         return;
     }
 
-    //Move X
+    //X mozgás
     newPos.copy(camera.position);
     newPos.addScaledVector(new THREE.Vector3(moveDir.x, 0, 0), speed * delta);
 
@@ -46,7 +46,7 @@ function player_handleMove(moveDir, delta) {
         return;
     }
 
-    //Move Z
+    //Z mozgás
     newPos.copy(camera.position);
     newPos.addScaledVector(new THREE.Vector3(0, 0, moveDir.z), speed * delta);
 
@@ -85,7 +85,6 @@ function player_update(delta) {
 
     moveDir.normalize();
 
-    var targetHeadY = 0.5;
     if (moveDir.length() != 0) {
         player_handleMove(moveDir, delta);
 

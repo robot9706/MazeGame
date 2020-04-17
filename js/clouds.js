@@ -14,6 +14,7 @@ function clouds_createBoxMesh() {
     return mesh;
 }
 
+// Létehoz egy felhőt random téglatestekből
 function clouds_randomCloud() {
     var cloudBSP = new ThreeBSP(clouds_createBoxMesh());
 

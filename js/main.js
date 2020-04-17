@@ -1,6 +1,7 @@
 var WIDTH, HEIGHT, aspectRatio;
 var renderer;
 var scene, camera;
+var sceneOrtho, cameraOrtho;
 
 var clock;
 
@@ -19,7 +20,7 @@ function main_start() {
 
     clock = new THREE.Clock();
 
-    // Renderer
+    // Renderer létrehozása
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(WIDTH, HEIGHT);
     renderer.setClearColor(0x000000);
@@ -36,22 +37,22 @@ function main_start() {
     renderer.shadowMapWidth = 1024;
     renderer.shadowMapHeight = 1024;
 
-    // New scene
+    // Új színtér
     scene = new THREE.Scene();
 
-    // Cloud lights
+    // Felhrő réteg fény forrásai
     var cloudDir = new THREE.DirectionalLight(0xffffff, 1, 2);
     cloudDir.position.set(4, 5, 2);
     cloudDir.layers.set(1);
     scene.add(cloudDir);
     scene.add(cloudDir.target);
-    cloudDir.target.position.set(0,0,0);
+    cloudDir.target.position.set(0, 0, 0);
 
     var cloudAmbient = new THREE.AmbientLight(0xDDDDDD);
     cloudAmbient.layers.set(1);
     scene.add(cloudAmbient);
 
-    // Main lights
+    // Fő réteg fényforrásai
     scene.add(new THREE.AmbientLight(0x888888));
 
     shadowLight = new THREE.DirectionalLight(0xffffff, 1, 2);
@@ -60,38 +61,45 @@ function main_start() {
     scene.add(shadowLight);
     scene.add(shadowLight.target);
 
-    // Create a skybox
+    // Skybox létrehozása
     skybox_init(scene);
 
-    // Create clouds
+    // Felhők létrehozása
     clouds_create(scene);
 
-    // Create a camera
+    // Kamera
     camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.05, 1000);
     camera.position.x = 2.5;
     camera.position.y = 0.5;
     camera.position.z = 2.5;
     camera.lookAt(new THREE.Vector3(1.5, 0.5, 1.5));
 
-    // Create the camera controller
+    // UI jelenet
+    sceneOrtho = new THREE.Scene();
+
+    // UI camera
+    cameraOrtho = new THREE.OrthographicCamera(-WIDTH / 2, WIDTH / 2, HEIGHT / 2, -HEIGHT / 2, 0, 10);
+    cameraOrtho.position.z = 10;
+
+    // FPS kamera vezérlő
     camControls = new THREE.PointerLockControls(camera, document.body);
     scene.add(camControls.getObject());
 
-    camControls.addEventListener("lock", function() {
+    camControls.addEventListener("lock", function () {
         document.getElementById("menu").style.display = "none";
     });
-    camControls.addEventListener("unlock", function() {
+    camControls.addEventListener("unlock", function () {
         document.getElementById("menu").style.display = "block";
     });
 
     window.addEventListener('resize', main_handleWindowResize, false);
 
-    // Start the game
+    // Játék indítása
     game_start();
 
     document.getElementById("btn_loading").style.display = "none";
     document.getElementById("btn_start").style.display = "block";
-    document.getElementById("btn_start").addEventListener("click", function(e){
+    document.getElementById("btn_start").addEventListener("click", function (e) {
         camControls.lock();
     });
 
@@ -107,39 +115,53 @@ function main_handleWindowResize() {
 
     camera.aspect = aspectRatio;
     camera.updateProjectionMatrix();
+
+    cameraOrtho.left = -WIDTH / 2;
+    cameraOrtho.right = WIDTH / 2;
+    cameraOrtho.top = HEIGHT / 2;
+    cameraOrtho.bottom = -HEIGHT / 2;
+    cameraOrtho.updateProjectionMatrix();
 }
 
 var main_render = function () {
+    requestAnimationFrame(main_render);
+
     var delta = clock.getDelta();
 
+    // Komponensek frissítése
     player_update(delta);
     game_update(delta);
 
-    // Move light
+    // Fő fényforrás mozgatása a kamerával egy irányba
     var cameraDirection = camControls.getDirection(new THREE.Vector3());
     cameraDirection.y = 0;
 
     shadowLight.position.copy(camera.position);
-    shadowLight.position.add(new THREE.Vector3(4,5,2));
+    shadowLight.position.add(new THREE.Vector3(4, 5, 2));
     shadowLight.position.addScaledVector(cameraDirection, 5);
     shadowLight.target.position.copy(camera.position);
     shadowLight.target.position.addScaledVector(cameraDirection, 5);
 
+    // TWEEN firssítés
     TWEEN.update();
 
+    // Jelenet rajzolása
+    renderer.clear();
     renderer.autoClear = true;
-    camera.layers.set(0);
+    camera.layers.set(0); // 0. réteg (fő réteg)
     renderer.render(scene, camera);
 
     renderer.autoClear = false;
-    camera.layers.set(1);
+    camera.layers.set(1); //1. réteg (felhő réteg)
     renderer.render(scene, camera);
 
-    requestAnimationFrame(main_render);
+    // HUD réteg
+    renderer.clearDepth();
+    renderer.render(sceneOrtho, cameraOrtho);
 };
 
 Math.lerp = function (value1, value2, amount) {
-	amount = amount < 0 ? 0 : amount;
-	amount = amount > 1 ? 1 : amount;
-	return value1 + (value2 - value1) * amount;
+    amount = amount < 0 ? 0 : amount;
+    amount = amount > 1 ? 1 : amount;
+    return value1 + (value2 - value1) * amount;
 };

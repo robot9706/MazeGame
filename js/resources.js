@@ -30,17 +30,33 @@ var res = {
     key: {
         type: "obj",
         data: null
+    },
+    shotgun: {
+        type: "texture",
+        data: null
+    },
+    crosshair: {
+        type: "texture",
+        data: null
+    },
+    point_particle: {
+        type: "texture",
+        data: null
+    },
+    skeleton_animated: {
+        type: "gltf",
+        data: null
     }
 };
 var keys = Object.keys(res);
 
 var texLoader = new THREE.TextureLoader();
 var objLoader = new THREE.OBJLoader();
+var gltfLoader = new THREE.GLTFLoader();
 
 var onDone;
 
-function resources_load(callback)
-{
+function resources_load(callback) {
     onDone = callback;
 
     resources_doLoad(0);
@@ -55,35 +71,47 @@ function resources_doLoad(index) {
         switch (obj.type) {
             case "texture":
                 texLoader.load("assets/" + keyName + ".png",
-                function(texture) {
-                    texture.minFilter = THREE.NearestFilter;
-                    texture.magFilter = THREE.NearestFilter;
+                    function (texture) {
+                        texture.minFilter = THREE.NearestFilter;
+                        texture.magFilter = THREE.NearestFilter;
 
-                    obj.data = texture;
+                        obj.data = texture;
 
-                    resources_doLoad(index + 1);
-                },
-                undefined,
-                function(error) {
-                    console.error(error);
-                    resources_doLoad(index + 1);
-                });
+                        resources_doLoad(index + 1);
+                    },
+                    undefined,
+                    function (error) {
+                        console.error(error);
+                        resources_doLoad(index + 1);
+                    });
                 break;
             case "obj":
                 objLoader.load("assets/" + keyName + ".obj",
-                function(model) {
-                    obj.data = model;
-                    resources_doLoad(index + 1);
-                },
-                undefined,
-                function(error) {
-                    console.error(error);
-                    resources_doLoad(index + 1);
-                });
+                    function (model) {
+                        obj.data = model;
+                        resources_doLoad(index + 1);
+                    },
+                    undefined,
+                    function (error) {
+                        console.error(error);
+                        resources_doLoad(index + 1);
+                    });
+                break;
+            case "gltf":
+                gltfLoader.load("assets/" + keyName + ".gltf",
+                    function (model) {
+                        obj.data = model;
+                        resources_doLoad(index + 1);
+                    },
+                    undefined,
+                    function (error) {
+                        console.error(error);
+                        resources_doLoad(index + 1);
+                    });
                 break;
             default:
                 console.warn("Unknown resource type: " + obj.type);
-                resources_doLoad(index+1);
+                resources_doLoad(index + 1);
                 break;
         }
     }

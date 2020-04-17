@@ -36,9 +36,9 @@ function maze_checkBlock(blocks, x, y, w, h) {
     return blocks[x + "-" + y]
 }
 
-// Based on the "Recursive backtracker" algorithm
+// "Recursive backtracker" algoritmus alapján egy labirintus generálása
 function maze_generate(width, height) {
-    // Init the maze
+    // Cellák előkészítése
     var cells = [];
     for (var y = 0; y < height; y++) {
         var line = [];
@@ -46,18 +46,18 @@ function maze_generate(width, height) {
             line.push({
                 x: x,
                 y: y,
-                walls: 15, // All walls set
+                walls: 15, // Minden fal létezik
                 visited: false
             });
         }
         cells.push(line);
     }
 
-    // Const
+    // Konstans kezdőpozíció
     var startX = 1;
     var startY = 0;
 
-    // Randomize a maze
+    // Random labirintus
     var startCell = maze_helperGetCell(cells, startX, startY, width, height);
 
     var stack = [startCell];
@@ -68,7 +68,7 @@ function maze_generate(width, height) {
         var x = current.x;
         var y = current.y;
 
-        // Find possible neighbours
+        // Lehetséges szomszédok keresése
         var possible = [];
         if (maze_checkVisit(cells, x - 1, y, width, height)) possible.push({ x: x - 1, y: y, mask: MASK_LEFT, maskInvert: MASK_RIGHT });
         if (maze_checkVisit(cells, x + 1, y, width, height)) possible.push({ x: x + 1, y: y, mask: MASK_RIGHT, maskInvert: MASK_LEFT });
@@ -79,27 +79,27 @@ function maze_generate(width, height) {
             continue;
         }
 
-        // Select a random neighbour
+        // Random szomszéd kiválasztása
         var selected = possible[Math.floor(Math.random() * possible.length)];
         var selectedCell = maze_helperGetCell(cells, selected.x, selected.y, width, height);
 
-        // Remove the walls
+        // Falak törlése
         current.walls &= (~selected.mask);
         selectedCell.walls &= (~selected.maskInvert);
 
-        // Push the current to the stack
+        // A jelenlegi cella mehet vissza a verembe
         stack.push(current);
 
-        // Mark the neighbour and push it to the stack
+        // Szomszéd megjelölése és mehet a verembe
         selectedCell.visited = true;
         stack.push(selectedCell);
     }
 
-    // Create the actual maze data
+    // A generált labirintus átalakítása
     realWidth = (width * 2 - 1)
     realHeight = (height * 2 - 1)
 
-    // Init all blocks to walls
+    // Minden cella alapból kocka
     var blocks = [];
     for (var y = 0; y < realHeight; y++) {
         for (var x = 0; x < realWidth; x++) {
@@ -107,7 +107,7 @@ function maze_generate(width, height) {
         }
     }
 
-    // Remove blocks
+    // Ahova nem kell kocka k9törlöm
     for (var y = 0; y < height; y++) {
         var line = cells[y];
         for (var x = 0; x < width; x++) {
@@ -131,7 +131,7 @@ function maze_generate(width, height) {
         }
     }
 
-    // Decorate the maze with walls and a starting area
+    // Dekorációk
     finalWidth = realWidth + 5
     finalHeight = realHeight + 5
 
@@ -139,28 +139,28 @@ function maze_generate(width, height) {
 
     var newBlocks = [];
 
-    // Fill the final map
+    // A végleges térkép előkészítése
     for (var y = 0; y < finalHeight; y++) {
         for (var x = 0; x < finalWidth; x++) {
             newBlocks[x + "-" + y] = (x <= 1 || y <= 1 || x == finalWidth - 1 || y == finalHeight - 1);
         }
     }
 
-    // Create the spawn
+    // Kezdőzóna
     for (var y = 0; y < 3; y++) {
         for (var x = 0; x < 3; x++) {
             newBlocks[(x + 1) + "-" + (y + 1)] = false
         }
     }
 
-    // Copy the original map
+    // Labirintus átmásolása
     for (var y = 0; y < realHeight; y++) {
         for (var x = 0; x < realWidth; x++) {
             newBlocks[(x + mapOffset) + "-" + (y + mapOffset)] = blocks[x + "-" + y]
         }
     }
 
-    // Find possible posotions for loot
+    // Lehetséges ereklye és dekoráció helyeinek megkeresése
     var spawnPos = [];
     for (var y = 0; y < realHeight; y++) {
         for (var x = 0; x < realWidth; x++) {
@@ -197,8 +197,9 @@ function maze_generate(width, height) {
     }
 }
 
+// Egy padló négyzetet készít el
 function maze_meshAddFlat(geom, x, z, yOffset = 0) {
-    // Vertices
+    // Vertexek
     var baseVertex = geom.vertices.length;
     geom.vertices.push(
         new THREE.Vector3(x, yOffset, z),
@@ -207,7 +208,7 @@ function maze_meshAddFlat(geom, x, z, yOffset = 0) {
         new THREE.Vector3(x, yOffset, z + 1),
     );
 
-    //UVs
+    //UV
     geom.faceVertexUvs[0].push([
         new THREE.Vector2(1, 0),
         new THREE.Vector2(0, 0),
@@ -219,7 +220,7 @@ function maze_meshAddFlat(geom, x, z, yOffset = 0) {
         new THREE.Vector2(0, 1)
     ]);
 
-    // Faces
+    // Face
     geom.faces.push(
         new THREE.Face3(baseVertex + 1, baseVertex, baseVertex + 2),
         new THREE.Face3(baseVertex + 2, baseVertex, baseVertex + 3),
@@ -269,10 +270,11 @@ var wallTemplates = {
     }
 }
 
+// Egy falat készít
 function maze_meshAddWall(geom, x, z, mask) {
     var template = wallTemplates[mask];
 
-    // Vertices
+    // Vertexek
     var baseVertex = geom.vertices.length;
 
     for (var i = 0; i < template.vertices.length; i++) {
@@ -280,7 +282,7 @@ function maze_meshAddWall(geom, x, z, mask) {
         geom.vertices.push(new THREE.Vector3(x + vert.x, vert.y, z + vert.z));
     }
 
-    // Faces
+    // Face
     if (template.normalFlip) {
         geom.faceVertexUvs[0].push([
             new THREE.Vector2(1, 0),
@@ -316,6 +318,7 @@ function maze_meshAddWall(geom, x, z, mask) {
     }
 }
 
+// Labirintus geometria elkészítése
 function maze_buildMaze(scene, maze) {
     var width = maze.width;
     var height = maze.height;
@@ -328,12 +331,15 @@ function maze_buildMaze(scene, maze) {
     wallGeometry.faceVertexUvs[0] = [];
 
     var collision = [];
-
+    var pathFind = [];
+    
     for (var y = 0; y < height; y++) {
+        var pathFindLine = [];
+
         for (var x = 0; x < width; x++) {
             var block = blocks[x + "-" + y];
             if (block) {
-                // Create walls
+                // Falak
                 if (!maze_checkBlock(blocks, x - 1, y, width, height)) {
                     maze_meshAddWall(wallGeometry, x - 1, y, MASK_RIGHT);
                 }
@@ -348,15 +354,21 @@ function maze_buildMaze(scene, maze) {
                     maze_meshAddWall(wallGeometry, x, y + 1, MASK_UP);
                 }
 
-                // Create collision
+                // Ütközés Box3
                 collision[x + "-" + y] = new THREE.Box3(
                     new THREE.Vector3(x, 0, y),
                     new THREE.Vector3(x + 1, 1, y + 1),
                 );
+
+                pathFindLine.push(0);
             } else {
-                maze_meshAddFlat(floorGeometry, x, y); // Add floor
+                maze_meshAddFlat(floorGeometry, x, y); // Padló
+
+                pathFindLine.push(1);
             }
         }
+
+        pathFind.push(pathFindLine);
     }
 
     floorGeometry.uvsNeedUpdate = true;
@@ -374,6 +386,8 @@ function maze_buildMaze(scene, maze) {
     var floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
     floorMesh.castShadow = true;
     floorMesh.receiveShadow = true;
+    floorMesh.layers.enable(0); // Megjelenítés réteg
+    floorMesh.layers.enable(2); // Raycast réteg
     scene.add(floorMesh);
 
     var wallMaterial = new THREE.MeshPhongMaterial({
@@ -382,9 +396,11 @@ function maze_buildMaze(scene, maze) {
     var wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
     wallMesh.castShadow = true;
     wallMesh.receiveShadow = true;
+    wallMesh.layers.enable(0); // Megjelenítés réteg
+    wallMesh.layers.enable(2); // Raycast réteg
     scene.add(wallMesh);
 
-    // Generate loot
+    // Ereklyék elhelyezése
     var lootPos = maze.lootPos
 
     var artifacts = [];
@@ -426,7 +442,7 @@ function maze_buildMaze(scene, maze) {
         artifacts.push(artifact);
     }
 
-    // Generate statues
+    // Dekorációk elhelyezése
     for (var i = 0; i < MAZE_STATUES.length; i++) {
         if (lootPos.length == 0)
             break;
@@ -469,6 +485,7 @@ function maze_buildMaze(scene, maze) {
         ],
         collision: collision,
         artifacts: artifacts,
+        pathFind: new Graph(pathFind, { diagonal: true })
     }
 
     return maze;

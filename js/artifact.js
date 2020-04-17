@@ -8,6 +8,7 @@ function artifact_createMesh(geom) {
     return mesh;
 }
 
+// Random geometriákat felhasználva legyárt egy alakzatot (ThreeBSP intersect)
 function artifact_generateMesh() {
     var shape1List = [
         new THREE.BoxGeometry(0.6, 0.6, 0.6),
@@ -68,42 +69,62 @@ function artifact_generateMesh() {
     return result
 }
 
-function artifact_create(sourceData, isGhost) {
-    var data = (sourceData != null ? sourceData.clone() : artifact_generateMesh())
-    if (sourceData != null) {
-        data.material = sourceData.material.clone();
+// Létrehoz egy új rando mereklyét vagy egy létezőnek a másolatát
+function artifact_create(sourceArtifact, isGhost) {
+    var object = null;
+    if (sourceArtifact != null) {
+        object = sourceArtifact.mesh.clone();
+        object.material = sourceArtifact.mesh.material.clone();
+    } else {
+        object = artifact_generateMesh();
     }
 
-    var material = data.material
-
     var light = new THREE.PointLight(0x1111FF, 1.75, 1.2);
-    data.add(light);
+    var particles = particles_artifact();
 
-    var artifact = {
-        data: data,
-        animation: null,
-        light: light,
-        isGhost: (isGhost != null ? isGhost : false)
-    };
-
-    var tweenData = { x: 0, target: artifact }
+    var tweenData = { x: 0, target: object, artifact: null }
     var tween = new TWEEN.Tween(tweenData)
         .to({ x: 1 }, 5000)
         .repeat( Infinity )
         .onUpdate(function() {
-            tweenData.target.data.position.y = 0.4 + Math.sin(tweenData.x * Math.PI * 2) * 0.1;
-            tweenData.target.data.rotation.y = Math.PI * 2 * tweenData.x;
+            tweenData.target.position.y = Math.sin(tweenData.x * Math.PI * 2) * 0.1;
+            tweenData.target.rotation.y = Math.PI * 2 * tweenData.x;
 
-            if (tweenData.target.isGhost) {
-                material.opacity = 0.25 + ((Math.sin(tweenData.x * Math.PI * 15) + 1) * 0.3)
+            if (tweenData.artifact.isGhost) {
+                tweenData.target.material.opacity = 0.25 + ((Math.sin(tweenData.x * Math.PI * 15) + 1) * 0.3)
             } else {
-                material.opacity = 0.9;
+                tweenData.target.material.opacity = 0.9;
             }
         });
-    tween.start();
 
-    artifact.animation = tween;
-    data.artifact = artifact;
+    var artifact = {
+        data: null,
+        mesh: object,
+        animation: tween,
+        particles: particles,
+        light: light,
+        isGhost: (isGhost != null ? isGhost : false)
+    };
+    tweenData.artifact = artifact
+
+    var group = new THREE.Group();
+    group.artifact = artifact
+    artifact.data = group
+
+    group.add(artifact.mesh)
+    group.add(artifact.light)
+    group.add(particles)
+
+    group.layers.enable(0); // Megjelenítés
+    group.layers.enable(2); // Raycast
+
+    artifact.mesh.position.set(0,0,0);
+    artifact.mesh.layers.enable(0)
+    artifact.mesh.layers.enable(2)
+
+    group.name = "Artifact"
+
+    tween.start();
 
     return artifact;
 }

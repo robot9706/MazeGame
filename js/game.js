@@ -11,27 +11,76 @@ var pickedArtifact;
 
 var pickSprite;
 
+var deathSprite;
+var deathReset = false;
+
 function game_start() {
     isPicking = false;
 
-    // Create the pick sprite
+    // Részecske shader betöltés
+    particles_init();
+
+    // Ellenfél
+    skeleton_create(new THREE.Vector3(14.5,0,2.5));
+
+    // Kéz sprite létrehozás
     var pickSpriteMaterial = new THREE.SpriteMaterial({
         map: res.pick.data,
         depthTest: false
     });
     pickSprite = new THREE.Sprite(pickSpriteMaterial);
-    pickSprite.scale.set(0.3, 0.3, 1);
+    pickSprite.scale.set(WIDTH / 20, WIDTH / 20, 1);
     pickSprite.visible = false;
-    camera.add(pickSprite);
-    pickSprite.position.set(0, 0, -2);
+    sceneOrtho.add(pickSprite);
+    pickSprite.position.set(0, 0, 2);
 
-    // Generate a maze
+    // Piros képernyő
+    var deathSpriteMaterial = new THREE.SpriteMaterial({
+        color: 0xFF0000,
+        depthTest: false,
+        transparent: true,
+        opacity: 0.0
+    });
+    deathSprite = new THREE.Sprite(deathSpriteMaterial);
+    deathSprite.scale.set(WIDTH, WIDTH, 0.5);
+    sceneOrtho.add(deathSprite);
+
+    // Célzó sprite
+    var crosshairSpriteMaterial = new THREE.SpriteMaterial({
+        map: res.crosshair.data,
+        depthTest: false,
+        transparent: true,
+        opacity: 0.5
+    });
+    var crosshairSprite = new THREE.Sprite(crosshairSpriteMaterial);
+    crosshairSprite.scale.set(4, 4, 1);
+    crosshairSprite.position.set(0, 0, 3);
+    sceneOrtho.add(crosshairSprite);
+
+    // Fegyver
+    shotgun_init();
+
+    // Labirintus generálás
     genData = maze_generate(MAZE_SIZE, MAZE_SIZE);
     currentMaze = maze_buildMaze(scene, genData);
 
     game_selectArtifact();
 }
 
+function game_addDeath(val) {
+    deathReset = true;
+    deathSprite.material.opacity += val;
+    if (deathSprite.material.opacity > 1) {
+        deathSprite.material.opacity = 1;
+
+        document.getElementById("btn_start").style.display = "none";
+        document.getElementById("btn_reset").style.display = "block";
+
+        camControls.unlock();
+    }
+}
+
+// Játék végénél kulcs megjelenítése
 function game_end() {
     var key = res.key.data.clone();
 
@@ -67,6 +116,7 @@ function game_end() {
     tween.start();
 }
 
+// Választ egy még nem felvett ereklyét és elhelyezi a kezdő zónába a szellemét
 function game_selectArtifact() {
     var artifacts = currentMaze.artifacts;
     if (artifacts.length == 0) {
@@ -77,30 +127,60 @@ function game_selectArtifact() {
     var index = Math.floor(Math.random() * artifacts.length);
     var artifact = artifacts[index];
 
-    artifactGhost = artifact_create(artifact.data, true);
+    artifactGhost = artifact_create(artifact, true);
 
     artifactGhost.data.position.set(1.5, 0.5, 1.5)
     scene.add(artifactGhost.data)
 }
 
 function game_update(delta) {
-    if (artifactGhostColorReset > 0) {
-        artifactGhostColorReset -= delta;
-        if (artifactGhostColorReset <= 0) {
-            artifactGhost.data.material.color.set(ARTIFACT_COLOR);
+    if (delta > 1 / 24) {
+        delta = 1 / 24;
+        console.warn("Slow game!");
+    }
+
+    if (!camControls.isLocked) {
+        return;
+    }
+
+    if (deathReset) {
+        deathReset = false;
+    } else {
+        deathSprite.material.opacity -= 0.5 * delta;
+        if (deathSprite.material.opacity < 0) {
+            deathSprite.material.opacity = 0;
         }
     }
 
+    // Fegyver
+    shotgun_update(delta);
+
+    // Animáció
+    skeleton_update(delta);
+
+    // Részecskék
+    particles_update(delta);
+
+	// Ereklye piros szín visszaállítása
+    if (artifactGhostColorReset > 0) {
+        artifactGhostColorReset -= delta;
+        if (artifactGhostColorReset <= 0) {
+            artifactGhost.mesh.material.color.set(ARTIFACT_COLOR);
+        }
+    }
+
+	// Raycaster segítségével keresek egy ereklyét amire a camera néz
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    var intersects = raycaster.intersectObjects(scene.children);
+    raycaster.layers.set(2);
+    var intersects = raycaster.intersectObjects(scene.children, true);
     var selectedObject = null;
     for (var i = 0; i < intersects.length; i++) {
-        if (intersects[i].distance >= 1) {
+        if (intersects[i].distance >= 1 || intersects[i].object.parent == null) {
             continue;
         }
 
-        if (intersects[i].object.artifact != null) {
-            selectedObject = intersects[i].object;
+        if (intersects[i].object.parent.artifact != null) {
+            selectedObject = intersects[i].object.parent;
             break;
         }
     }
@@ -119,17 +199,19 @@ function game_update(delta) {
         }
     } else {
         isPicking = false;
+        if ((input_isDown("PICK") || input_isDown("PICK_MOUSE"))) {
+            shotgun_shot(intersects.length > 0 ? intersects[0] : null);
+        }
     }
 }
 
 function game_artifactPick(current) {
-    console.time("A");
-    if (current.artifact === artifactGhost) {
+    if (current.artifact === artifactGhost) { // Szellemre kattintás?
         if (pickedArtifact != null) {
-            var pickedID = parseInt(pickedArtifact.artifact.data.name);
-            var wantedID = parseInt(artifactGhost.data.name);
+            var pickedID = parseInt(pickedArtifact.artifact.mesh.name);
+            var wantedID = parseInt(artifactGhost.mesh.name);
 
-            if (pickedID == wantedID) {
+            if (pickedID == wantedID) { // Jó a felvett ereklye?
                 artifactGhost.data.visible = false;
                 pickedArtifact.visible = false;
 
@@ -148,14 +230,14 @@ function game_artifactPick(current) {
 
                 game_selectArtifact();
             } else {
-                artifactGhost.data.material.color.set(0xFF0000);
+                artifactGhost.mesh.material.color.set(0xFF0000);
                 artifactGhostColorReset = 2;
             }
         } else {
-            artifactGhost.data.material.color.set(0xFF0000);
+            artifactGhost.mesh.material.color.set(0xFF0000);
             artifactGhostColorReset = 2;
         }
-    } else {
+    } else { // Ereklyére kattintás
         if (pickedArtifact != null) {
             pickedArtifact.artifact.isGhost = false;
         }
@@ -163,5 +245,4 @@ function game_artifactPick(current) {
         current.artifact.isGhost = true;
         pickedArtifact = current;
     }
-    console.timeEnd("A")
 }

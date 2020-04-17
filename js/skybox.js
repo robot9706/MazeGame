@@ -1,5 +1,3 @@
-// Textúrák: https://opengameart.org/content/cloudy-skyboxes
-
 var skybox;
 
 function skybox_init(scene) {

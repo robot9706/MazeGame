@@ -1,9 +1,10 @@
 ﻿<!DOCTYPE html>
+
 <html>
 
 <head>
     <meta charset=utf-8>
-    <title>Első beadandó</title>
+    <title>Második beadandó</title>
     <style>
         body {
             margin: 0;
@@ -42,11 +43,43 @@
         }
     </script>
 
+
+
+    <script id="particlealpha_vs" type="x-shader/x-vertex">
+        attribute float alpha;
+        uniform float time;
+        varying float vAlpha;
+
+        void main() {
+            vAlpha = ((sin(time + alpha) + 1.0) / 2.0) * 0.6;
+    
+            vec4 worldPos = modelViewMatrix * vec4(position, 1.0);
+            gl_PointSize = 20.0 / (-worldPos.z);
+
+            gl_Position = projectionMatrix * worldPos;
+    
+        }
+    </script>
+    <script id="particlealpha_fs" type="x-shader/x-fragment">
+        uniform vec3 color;
+        uniform sampler2D map;
+        varying float vAlpha;
+
+        void main() {
+            vec2 vUV = vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y);
+            gl_FragColor = texture2D(map, vUV) * vec4(color, vAlpha);
+        }
+    </script>
+
+
+
     <script src="js/lib/three.min.js"></script>
     <script src="js/lib/ThreeBSP.js"></script>
     <script src="js/lib/PointerLockControls.js"></script>
     <script src="js/lib/tween.min.js"></script>
     <script src="js/lib/OBJLoader.js"></script>
+    <script src="js/lib/glTFLoader.js"></script>
+    <script src="js/lib/astar.js"></script>
     <script src="js/skybox.js"></script>
     <script src="js/maze.js"></script>
     <script src="js/input.js"></script>
@@ -55,22 +88,29 @@
     <script src="js/game.js"></script>
     <script src="js/clouds.js"></script>
     <script src="js/resources.js"></script>
+    <script src="js/shotgun.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/skeleton.js"></script>
     <script src="js/main.js"></script>
 
     <div style="width: 100%; height: 100%;">
         <div id="canvas" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%;"></div>
-        <div id="menu" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; color: white; background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px);">
+        <div id="menu"
+            style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; color: white; background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px);">
             <div style="width: 100%; height: 100%; display: flex; flex-flow: column;">
                 <div style="flex: 1 1 auto"></div>
                 <div style="flex: 0 0 auto; display: flex; flex-flow: row;">
                     <div style="flex: 1 1 auto"></div>
-                    <div style="flex: 0 10 auto; background-color: rgba(26, 35, 126, 0.7); padding: 20px 20px 20px 20px; max-width: 500px; text-align: justify;">
+                    <div
+                        style="flex: 0 10 auto; background-color: rgba(26, 35, 126, 0.7); padding: 20px 20px 20px 20px; max-width: 500px; text-align: justify;">
                         <h2 style="text-align: center;">Labirintus</h2>
                         <h3>Cél</h3>
-                        <a>Egy elhagyatott labirintusban ragadtál, a cél megtalálni 3 ereklyét. Minden körben az adott ereklye szelleme a kezdő zónában lebeg.</a>
+                        <a>Egy elhagyatott labirintusban ragadtál, a cél megtalálni 3 ereklyét. Minden körben az adott
+                            ereklye szelleme a kezdő zónában lebeg.</a>
                         <a>Az ereklye felvétele a <i>bal egérgombbal</i> történik.</a>
-                        <a>A kezdő zónában a szellemre kattintva pirossá változik ha nem jó ereklye van a játékosnál vagy megjelenik egy új ereklye ha jó.</a>
-                        <a>Ha nincs több ereklye a játékos kijutott.</a>
+                        <a>A feévett ereklyét a kezdőzónába kell visszajuttatni, a szellemre kattintva vagy megjelenik egy új szellem ha jó ereklye került a helyére, vagy piros lesz ha rossz.</a>
+                        <a>Ha nincs több ereklye megjelenik a kulcs amivel ki lehet jutni a labirintusból.</a>
+                        <a><u>Csontváz: </u>Egyes csontvázak szeretnek akadályozni, ha túl közel engeded magadhoz a játék véget ér! Azonban a fegyvereddel egy jól célzott lövéssel kis időre kiütheted a csontvázat!</a>
                         <h3>Irányítás</h3>
                         <ul>
                             <li>Mozgás: WSAD</li>
@@ -79,8 +119,18 @@
                             <li>Sprint: Bal shift</li>
                             <li>Visszalépés a menübe: ESC</li>
                         </ul>
-                        <div id="btn_loading" style="margin-left: auto; margin-right: auto; background-color: #2939C6; width: 150px; margin-top: 20px; text-align: center;"><h2>Töltés...</h2></div>
-                        <div id="btn_start" style="margin-left: auto; margin-right: auto; background-color: #2939C6; width: 150px; margin-top: 20px; cursor: pointer; text-align: center; display: none;"><h2>Játék</h2></div>
+                        <div id="btn_loading"
+                            style="margin-left: auto; margin-right: auto; background-color: #2939C6; width: 150px; margin-top: 20px; text-align: center;">
+                            <h2>Töltés...</h2>
+                        </div>
+                        <div id="btn_start"
+                            style="margin-left: auto; margin-right: auto; background-color: #2939C6; width: 150px; margin-top: 20px; cursor: pointer; text-align: center; display: none;">
+                            <h2>Játék</h2>
+                        </div>
+                        <div id="btn_reset" onclick="location.reload();"
+                            style="margin-left: auto; margin-right: auto; background-color: #2939C6; width: 150px; margin-top: 20px; cursor: pointer; text-align: center; display: none;">
+                            <h2>Újra</h2>
+                        </div>
                     </div>
                     <div style="flex: 1 1 auto"></div>
                 </div>
