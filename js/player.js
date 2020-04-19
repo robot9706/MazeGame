@@ -89,10 +89,10 @@ function player_update(delta) {
         player_handleMove(moveDir, delta);
 
         playerHeadTime += delta;
-        camera.position.y = 0.5 + Math.sin(playerHeadTime * 10) * 0.03;
+        //camera.position.y = 0.5 + Math.sin(playerHeadTime * 10) * 0.03;
     } else {
         playerHeadTime = 0;
 
-        camera.position.y = Math.lerp(camera.position.y, 0.5, delta * 10);
+        //camera.position.y = Math.lerp(camera.position.y, 0.5, delta * 10);
     }
 }

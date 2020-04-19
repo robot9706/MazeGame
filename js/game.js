@@ -2,9 +2,6 @@ const MAZE_SIZE = 6;
 
 var currentMaze;
 
-var artifactGhost;
-var artifactGhostColorReset = 0;
-
 var isPicking;
 var raycaster = new THREE.Raycaster();
 var pickedArtifact;
@@ -14,14 +11,13 @@ var pickSprite;
 var deathSprite;
 var deathReset = false;
 
+var reflectionCamera;
+
 function game_start() {
     isPicking = false;
 
     // Részecske shader betöltés
     particles_init();
-
-    // Ellenfél
-    skeleton_create(new THREE.Vector3(14.5,0,2.5));
 
     // Kéz sprite létrehozás
     var pickSpriteMaterial = new THREE.SpriteMaterial({
@@ -42,7 +38,8 @@ function game_start() {
         opacity: 0.0
     });
     deathSprite = new THREE.Sprite(deathSpriteMaterial);
-    deathSprite.scale.set(WIDTH, WIDTH, 0.5);
+    deathSprite.scale.set(WIDTH, WIDTH, 1);
+    deathSprite.position.set(0, 0, 1);
     sceneOrtho.add(deathSprite);
 
     // Célzó sprite
@@ -57,14 +54,40 @@ function game_start() {
     crosshairSprite.position.set(0, 0, 3);
     sceneOrtho.add(crosshairSprite);
 
+    // Víz
+    reflectionCamera = new THREE.CubeCamera(1, 32, 512);
+    scene.add(reflectionCamera);
+
+    var waterPlane = new THREE.PlaneGeometry(32, 32);
+    var waterMaterial = new THREE.MeshPhongMaterial({
+        color: 0xaaaaff,
+        specular: 0xaaaaaa,
+        shininess: 100,
+        envMap: reflectionCamera.renderTarget.texture,
+        reflectivity: 0.5,
+
+        transparent: true,
+        opacity: 0.5,
+
+        normalMap: res.water_normal.data
+    });
+    var water = new THREE.Mesh(waterPlane, waterMaterial);
+    water.rotation.set(-Math.PI / 2, 0, 0);
+    water.position.set(MAZE_LAYOUT.layout[0].length / 2, -0.1, MAZE_LAYOUT.layout.length / 2);
+    scene.add(water);
+
     // Fegyver
     shotgun_init();
 
     // Labirintus generálás
-    genData = maze_generate(MAZE_SIZE, MAZE_SIZE);
-    currentMaze = maze_buildMaze(scene, genData);
+    currentMaze = maze_buildMaze(scene);
 
-    game_selectArtifact();
+    // Játékos elhelyezése
+    camera.position.set(MAZE_LAYOUT.playerSpawn.x + 0.5, 0.65, MAZE_LAYOUT.playerSpawn.y + 0.5);
+    camera.rotation.set(0,0,0);
+
+    // Ellenfél
+    skeleton_create(new THREE.Vector3(MAZE_LAYOUT.enemySpawn.x + 0.5, 0, MAZE_LAYOUT.enemySpawn.y + 0.5));
 }
 
 function game_addDeath(val) {
@@ -117,7 +140,7 @@ function game_end() {
 }
 
 // Választ egy még nem felvett ereklyét és elhelyezi a kezdő zónába a szellemét
-function game_selectArtifact() {
+/*function game_selectArtifact() {
     var artifacts = currentMaze.artifacts;
     if (artifacts.length == 0) {
         game_end();
@@ -131,7 +154,7 @@ function game_selectArtifact() {
 
     artifactGhost.data.position.set(1.5, 0.5, 1.5)
     scene.add(artifactGhost.data)
-}
+}*/
 
 function game_update(delta) {
     if (delta > 1 / 24) {
@@ -152,6 +175,10 @@ function game_update(delta) {
         }
     }
 
+    // Víz tükröződés
+    reflectionCamera.position.copy(camera.position);
+    reflectionCamera.update(renderer, scene);
+
     // Fegyver
     shotgun_update(delta);
 
@@ -160,14 +187,6 @@ function game_update(delta) {
 
     // Részecskék
     particles_update(delta);
-
-	// Ereklye piros szín visszaállítása
-    if (artifactGhostColorReset > 0) {
-        artifactGhostColorReset -= delta;
-        if (artifactGhostColorReset <= 0) {
-            artifactGhost.mesh.material.color.set(ARTIFACT_COLOR);
-        }
-    }
 
 	// Raycaster segítségével keresek egy ereklyét amire a camera néz
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
@@ -206,7 +225,24 @@ function game_update(delta) {
 }
 
 function game_artifactPick(current) {
-    if (current.artifact === artifactGhost) { // Szellemre kattintás?
+    if (current.artifact.mode == "TARGET") {
+        if (pickedArtifact != null && current.artifact.tag == pickedArtifact.artifact.tag) {
+            pickedArtifact.artifact.data.visible = false;
+
+            current.artifact.isGhost = false;
+        } else {
+            current.artifact.red.start();
+        }
+    } else if (current.artifact.mode == "PICKUP") {
+        if (pickedArtifact != null) {
+            pickedArtifact.artifact.isGhost = false;
+        }
+
+        current.artifact.isGhost = true;
+        pickedArtifact = current;
+    }
+
+    /*if (current.artifact === artifactGhost) { // Szellemre kattintás?
         if (pickedArtifact != null) {
             var pickedID = parseInt(pickedArtifact.artifact.mesh.name);
             var wantedID = parseInt(artifactGhost.mesh.name);
@@ -244,5 +280,5 @@ function game_artifactPick(current) {
 
         current.artifact.isGhost = true;
         pickedArtifact = current;
-    }
+    }*/
 }

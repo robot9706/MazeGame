@@ -101,7 +101,7 @@ function skeleton_update(time) {
             var target;
 
             var dist = s.object.position.distanceTo(player);
-            if (dist < 0.6) {
+            if (dist < 0.9) {
                 game_addDeath(1.5 * time);
             }
 

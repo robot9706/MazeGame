@@ -37,7 +37,7 @@ function maze_checkBlock(blocks, x, y, w, h) {
 }
 
 // "Recursive backtracker" algoritmus alapján egy labirintus generálása
-function maze_generate(width, height) {
+function maze_generate(width, height, lootOffsetX, lootOffsetY) {
     // Cellák előkészítése
     var cells = [];
     for (var y = 0; y < height; y++) {
@@ -107,7 +107,7 @@ function maze_generate(width, height) {
         }
     }
 
-    // Ahova nem kell kocka k9törlöm
+    // Ahova nem kell kocka kitörlöm
     for (var y = 0; y < height; y++) {
         var line = cells[y];
         for (var x = 0; x < width; x++) {
@@ -131,35 +131,6 @@ function maze_generate(width, height) {
         }
     }
 
-    // Dekorációk
-    finalWidth = realWidth + 5
-    finalHeight = realHeight + 5
-
-    mapOffset = 3
-
-    var newBlocks = [];
-
-    // A végleges térkép előkészítése
-    for (var y = 0; y < finalHeight; y++) {
-        for (var x = 0; x < finalWidth; x++) {
-            newBlocks[x + "-" + y] = (x <= 1 || y <= 1 || x == finalWidth - 1 || y == finalHeight - 1);
-        }
-    }
-
-    // Kezdőzóna
-    for (var y = 0; y < 3; y++) {
-        for (var x = 0; x < 3; x++) {
-            newBlocks[(x + 1) + "-" + (y + 1)] = false
-        }
-    }
-
-    // Labirintus átmásolása
-    for (var y = 0; y < realHeight; y++) {
-        for (var x = 0; x < realWidth; x++) {
-            newBlocks[(x + mapOffset) + "-" + (y + mapOffset)] = blocks[x + "-" + y]
-        }
-    }
-
     // Lehetséges ereklye és dekoráció helyeinek megkeresése
     var spawnPos = [];
     for (var y = 0; y < realHeight; y++) {
@@ -177,8 +148,8 @@ function maze_generate(width, height) {
 
             if (countX + countY == 3 || (countX >= 1 && countY >= 1)) {
                 spawnPos.push({
-                    x: x + mapOffset,
-                    y: y + mapOffset,
+                    x: x + lootOffsetX,
+                    y: y + lootOffsetY,
                     isCorner: (countX >= 1 && countY >= 1),
                     corner: {
                         x: dirX,
@@ -190,9 +161,9 @@ function maze_generate(width, height) {
     }
 
     return {
-        width: finalWidth,
-        height: finalHeight,
-        blocks: newBlocks,
+        width: realWidth,
+        height: realHeight,
+        blocks: blocks,
         lootPos: spawnPos
     }
 }
@@ -271,7 +242,7 @@ var wallTemplates = {
 }
 
 // Egy falat készít
-function maze_meshAddWall(geom, x, z, mask) {
+function maze_meshAddWall(geom, x, z, mask, yOffset = 0) {
     var template = wallTemplates[mask];
 
     // Vertexek
@@ -279,7 +250,7 @@ function maze_meshAddWall(geom, x, z, mask) {
 
     for (var i = 0; i < template.vertices.length; i++) {
         var vert = template.vertices[i];
-        geom.vertices.push(new THREE.Vector3(x + vert.x, vert.y, z + vert.z));
+        geom.vertices.push(new THREE.Vector3(x + vert.x, vert.y + yOffset, z + vert.z));
     }
 
     // Face
@@ -318,52 +289,113 @@ function maze_meshAddWall(geom, x, z, mask) {
     }
 }
 
-// Labirintus geometria elkészítése
-function maze_buildMaze(scene, maze) {
-    var width = maze.width;
-    var height = maze.height;
-    var blocks = maze.blocks;
+function maze_layoutCheck(x, y, w, h, layout, what) {
+    if (x < 0 || y < 0 || x >= w || y >= h) {
+        return false;
+    }
 
+    return (layout[y][x] == what);
+}
+
+// Labirintus geometria elkészítése
+function maze_buildMaze(scene) {
+    var width = MAZE_LAYOUT.layout[0].length;
+    var height = MAZE_LAYOUT.layout.length;
+
+    // Labirintus generálása
+    var genW = (MAZE_LAYOUT.maze.w + 1) / 2;
+    var genH = (MAZE_LAYOUT.maze.h + 1) / 2;
+    var maze = maze_generate(genW, genH, MAZE_LAYOUT.maze.x, MAZE_LAYOUT.maze.y);
+
+    for (var my = 0; my < MAZE_LAYOUT.maze.h; my++) {
+        var line = MAZE_LAYOUT.layout[my + MAZE_LAYOUT.maze.y];
+        for (var mx = 0; mx < MAZE_LAYOUT.maze.w; mx++) {
+            line = line.replaceAt(mx + MAZE_LAYOUT.maze.x, (maze.blocks[mx + "-" + my] ? "1" : "0"));
+        }
+        MAZE_LAYOUT.layout[my + MAZE_LAYOUT.maze.y] = line;
+    }
+
+    // Meshes generálása
     var floorGeometry = new THREE.Geometry();
     var wallGeometry = new THREE.Geometry();
-
+    var waterFloorGeometry = new THREE.Geometry();
+    var waterWallGeometry = new THREE.Geometry();
     floorGeometry.faceVertexUvs[0] = [];
     wallGeometry.faceVertexUvs[0] = [];
+    waterFloorGeometry.faceVertexUvs[0] = [];
+    waterWallGeometry.faceVertexUvs[0] = [];
 
-    var collision = [];
     var pathFind = [];
-    
+    var collision = [];
+
     for (var y = 0; y < height; y++) {
+        var lineTemplate = MAZE_LAYOUT.layout[y];
+
         var pathFindLine = [];
 
         for (var x = 0; x < width; x++) {
-            var block = blocks[x + "-" + y];
-            if (block) {
-                // Falak
-                if (!maze_checkBlock(blocks, x - 1, y, width, height)) {
-                    maze_meshAddWall(wallGeometry, x - 1, y, MASK_RIGHT);
-                }
-                if (!maze_checkBlock(blocks, x + 1, y, width, height)) {
-                    maze_meshAddWall(wallGeometry, x + 1, y, MASK_LEFT);
-                }
+            var isCollider = false;
 
-                if (!maze_checkBlock(blocks, x, y - 1, width, height)) {
-                    maze_meshAddWall(wallGeometry, x, y - 1, MASK_DOWN);
-                }
-                if (!maze_checkBlock(blocks, x, y + 1, width, height)) {
-                    maze_meshAddWall(wallGeometry, x, y + 1, MASK_UP);
-                }
+            switch (lineTemplate[x]) {
+                case "0": // Föld
+                    {
+                        maze_meshAddFlat(floorGeometry, x, y);
 
-                // Ütközés Box3
+                        isCollider = false;
+                    }
+                    break;
+                case "1": // Fal
+                    {
+                        if (!maze_layoutCheck(x - 1, y, width, height, MAZE_LAYOUT.layout, "1")) {
+                            maze_meshAddWall(wallGeometry, x - 1, y, MASK_RIGHT);
+                        }
+                        if (!maze_layoutCheck(x + 1, y, width, height, MAZE_LAYOUT.layout, "1")) {
+                            maze_meshAddWall(wallGeometry, x + 1, y, MASK_LEFT);
+                        }
+
+                        if (!maze_layoutCheck(x, y - 1, width, height, MAZE_LAYOUT.layout, "1")) {
+                            maze_meshAddWall(wallGeometry, x, y - 1, MASK_DOWN);
+                        }
+                        if (!maze_layoutCheck(x, y + 1, width, height, MAZE_LAYOUT.layout, "1")) {
+                            maze_meshAddWall(wallGeometry, x, y + 1, MASK_UP);
+                        }
+
+                        isCollider = true;
+                    }
+                    break;
+                case "2": // Víz
+                    {
+                        maze_meshAddFlat(waterFloorGeometry, x, y, -1);
+
+                        if (!maze_layoutCheck(x + 1, y, width, height, MAZE_LAYOUT.layout, "2")) {
+                            maze_meshAddWall(waterWallGeometry, x, y, MASK_RIGHT, -1);
+                        }
+
+                        if (!maze_layoutCheck(x - 1, y, width, height, MAZE_LAYOUT.layout, "2")) {
+                            maze_meshAddWall(waterWallGeometry, x, y, MASK_LEFT, -1);
+                        }
+
+                        if (!maze_layoutCheck(x, y + 1, width, height, MAZE_LAYOUT.layout, "2")) {
+                            maze_meshAddWall(waterWallGeometry, x, y, MASK_DOWN, -1);
+                        }
+
+                        if (!maze_layoutCheck(x, y - 1, width, height, MAZE_LAYOUT.layout, "2")) {
+                            maze_meshAddWall(waterWallGeometry, x, y, MASK_UP, -1);
+                        }
+
+                        isCollider = true;
+                    }
+                    break;
+            }
+
+            if (isCollider) {
+                pathFindLine.push(0);
+
                 collision[x + "-" + y] = new THREE.Box3(
                     new THREE.Vector3(x, 0, y),
                     new THREE.Vector3(x + 1, 1, y + 1),
                 );
-
-                pathFindLine.push(0);
             } else {
-                maze_meshAddFlat(floorGeometry, x, y); // Padló
-
                 pathFindLine.push(1);
             }
         }
@@ -373,11 +405,15 @@ function maze_buildMaze(scene, maze) {
 
     floorGeometry.uvsNeedUpdate = true;
     wallGeometry.uvsNeedUpdate = true;
+    waterFloorGeometry.uvsNeedUpdate = true;
+    waterWallGeometry.uvsNeedUpdate = true;
 
     floorGeometry.computeFaceNormals();
-
     wallGeometry.computeFaceNormals();
+    waterFloorGeometry.computeFaceNormals();
+    waterWallGeometry.computeFaceNormals();
 
+    // Pálya meshek
     var floorMaterial = new THREE.MeshPhongMaterial({
         map: res.grass.data,
         specularMap: res.grass_specular.data,
@@ -400,13 +436,53 @@ function maze_buildMaze(scene, maze) {
     wallMesh.layers.enable(2); // Raycast réteg
     scene.add(wallMesh);
 
-    // Ereklyék elhelyezése
+    var waterFloorMaterial = new THREE.MeshPhongMaterial({
+        map: res.rock.data
+    });
+    var waterFloorMesh = new THREE.Mesh(waterFloorGeometry, waterFloorMaterial);
+    waterFloorMesh.castShadow = true;
+    waterFloorMesh.receiveShadow = true;
+    waterFloorMesh.layers.enable(0); // Megjelenítés réteg
+    waterFloorMesh.layers.enable(2); // Raycast réteg
+    scene.add(waterFloorMesh);
+
+    var waterWallMaterial = new THREE.MeshPhongMaterial({
+        map: res.rock_grass.data
+    });
+    var waterWallMesh = new THREE.Mesh(waterWallGeometry, waterWallMaterial);
+    waterWallMesh.castShadow = true;
+    waterWallMesh.receiveShadow = true;
+    waterWallMesh.layers.enable(0); // Megjelenítés réteg
+    waterWallMesh.layers.enable(2); // Raycast réteg
+    scene.add(waterWallMesh);
+
+    // Ereklyék
     var lootPos = maze.lootPos
 
+    var statue = res.statue.data.clone();
+    statue.position.set(MAZE_LAYOUT.artifact.statue.x + 0.5, 0, MAZE_LAYOUT.artifact.statue.y + 0.5);
+    var statueMaterial = new THREE.MeshPhongMaterial({
+        color: 0xaaaaff,
+        specular: 0x050505,
+        shininess: 100,
+        envMap: res.envmap.data,
+        reflectivity: 0.5
+    });
+    statue.traverse(function(e) {
+        e.material = statueMaterial;
+    })
+
+    scene.add(statue);
+
     var artifacts = [];
-    for (var i = 0; i < MAZE_ARTIFACT_COUNT; i++) {
-        if (lootPos.length == 0)
-            break;
+    for (var e = 0; e < MAZE_LAYOUT.artifact.artifacts.length; e++) {
+        var apos = MAZE_LAYOUT.artifact.artifacts[e];
+
+        var artifact = artifact_create(null, true);
+        artifact.tag = e;
+        artifact.mode = "TARGET";
+        artifact.data.position.set(apos.x + 0.5, 0.5, apos.y + 0.5)
+        scene.add(artifact.data);
 
         var spawnPosIndex;
         var pos;
@@ -414,7 +490,8 @@ function maze_buildMaze(scene, maze) {
             spawnPosIndex = Math.floor(Math.random() * lootPos.length);
             pos = lootPos[spawnPosIndex];
 
-            if (artifacts.length == 0) {
+            if (lootPos.length == 0) {
+                console.error(":/");
                 break;
             }
 
@@ -435,14 +512,16 @@ function maze_buildMaze(scene, maze) {
 
         lootPos.splice(spawnPosIndex, 1);
 
-        var artifact = artifact_create(null, false);
-        artifact.data.position.set(pos.x + 0.5, 0.5, pos.y + 0.5)
-        scene.add(artifact.data);
+        var artifactPickup = artifact_create(artifact, false);
+        artifactPickup.tag = e;
+        artifactPickup.mode = "PICKUP";
+        artifactPickup.data.position.set(pos.x + 0.5, 0.5, pos.y + 0.5)
+        scene.add(artifactPickup.data);
 
-        artifacts.push(artifact);
+        artifacts.push(artifactPickup);
     }
 
-    // Dekorációk elhelyezése
+    // Dekorációk
     for (var i = 0; i < MAZE_STATUES.length; i++) {
         if (lootPos.length == 0)
             break;
@@ -477,14 +556,14 @@ function maze_buildMaze(scene, maze) {
         }
     }
 
+    // Pálya kész
     var maze = {
-        data: maze,
         meshes: [
             floorMesh,
             wallMesh
         ],
         collision: collision,
-        artifacts: artifacts,
+        artifacts: [],
         pathFind: new Graph(pathFind, { diagonal: true })
     }
 
@@ -492,7 +571,7 @@ function maze_buildMaze(scene, maze) {
 }
 
 function maze_createStatueMaterial(obj, key) {
-    var newMaterial = new THREE.MeshPhongMaterial( { 
+    var newMaterial = new THREE.MeshPhongMaterial({
         color: 0xaaaaaa,
         specular: 0x888888,
         shininess: 100

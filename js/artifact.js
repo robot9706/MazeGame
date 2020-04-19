@@ -3,7 +3,7 @@ var ID = 0;
 const ARTIFACT_COLOR = 0x6666FF;
 
 function artifact_createMesh(geom) {
-    var meshMaterial = new THREE.MeshBasicMaterial({color: 0xFFFFFF});
+    var meshMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
     var mesh = new THREE.Mesh(geom, meshMaterial);
     return mesh;
 }
@@ -85,8 +85,8 @@ function artifact_create(sourceArtifact, isGhost) {
     var tweenData = { x: 0, target: object, artifact: null }
     var tween = new TWEEN.Tween(tweenData)
         .to({ x: 1 }, 5000)
-        .repeat( Infinity )
-        .onUpdate(function() {
+        .repeat(Infinity)
+        .onUpdate(function () {
             tweenData.target.position.y = Math.sin(tweenData.x * Math.PI * 2) * 0.1;
             tweenData.target.rotation.y = Math.PI * 2 * tweenData.x;
 
@@ -95,6 +95,17 @@ function artifact_create(sourceArtifact, isGhost) {
             } else {
                 tweenData.target.material.opacity = 0.9;
             }
+
+        });
+
+    var tweenRedData = { target: object }
+    var tweenRed = new TWEEN.Tween(tweenRedData)
+        .to({}, 2000)
+        .onStart(function () {
+            tweenRedData.target.material.color.set(0xFF0000);
+        })
+        .onComplete(function () {
+            tweenRedData.target.material.color.set(ARTIFACT_COLOR);
         });
 
     var artifact = {
@@ -103,9 +114,11 @@ function artifact_create(sourceArtifact, isGhost) {
         animation: tween,
         particles: particles,
         light: light,
-        isGhost: (isGhost != null ? isGhost : false)
+        isGhost: (isGhost != null ? isGhost : false),
+        red: tweenRed
     };
     tweenData.artifact = artifact
+    tweenRed.artifact = artifact
 
     var group = new THREE.Group();
     group.artifact = artifact
@@ -118,7 +131,7 @@ function artifact_create(sourceArtifact, isGhost) {
     group.layers.enable(0); // Megjelenítés
     group.layers.enable(2); // Raycast
 
-    artifact.mesh.position.set(0,0,0);
+    artifact.mesh.position.set(0, 0, 0);
     artifact.mesh.layers.enable(0)
     artifact.mesh.layers.enable(2)
 

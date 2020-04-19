@@ -46,6 +46,26 @@ var res = {
     skeleton_animated: {
         type: "gltf",
         data: null
+    },
+    rock: {
+        type: "texture",
+        data: null
+    },
+    rock_grass: {
+        type: "texture",
+        data: null
+    },
+    statue: {
+        type: "obj",
+        data: null
+    },
+    envmap: {
+        type: "texture",
+        data: null
+    },
+    water_normal: {
+        type: "texture",
+        data: null
     }
 };
 var keys = Object.keys(res);

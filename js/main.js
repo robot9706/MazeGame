@@ -69,9 +69,6 @@ function main_start() {
 
     // Kamera
     camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.05, 1000);
-    camera.position.x = 2.5;
-    camera.position.y = 0.5;
-    camera.position.z = 2.5;
     camera.lookAt(new THREE.Vector3(1.5, 0.5, 1.5));
 
     // UI jelenet
@@ -93,6 +90,11 @@ function main_start() {
     });
 
     window.addEventListener('resize', main_handleWindowResize, false);
+
+    // EnvMap előkészítés
+    var envmap = res.envmap.data;
+    envmap.mapping = THREE.EquirectangularReflectionMapping;
+    envmap.encoding = THREE.sRGBEncoding;
 
     // Játék indítása
     game_start();
@@ -165,3 +167,7 @@ Math.lerp = function (value1, value2, amount) {
     amount = amount > 1 ? 1 : amount;
     return value1 + (value2 - value1) * amount;
 };
+
+String.prototype.replaceAt=function(index, replacement) {
+    return this.substr(0, index) + replacement+ this.substr(index + replacement.length);
+}
