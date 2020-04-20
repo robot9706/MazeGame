@@ -168,6 +168,6 @@ Math.lerp = function (value1, value2, amount) {
     return value1 + (value2 - value1) * amount;
 };
 
-String.prototype.replaceAt=function(index, replacement) {
-    return this.substr(0, index) + replacement+ this.substr(index + replacement.length);
+String.prototype.replaceAt = function (index, replacement) {
+    return this.substr(0, index) + replacement + this.substr(index + replacement.length);
 }

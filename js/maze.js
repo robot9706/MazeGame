@@ -391,10 +391,10 @@ function maze_buildMaze(scene) {
             if (isCollider) {
                 pathFindLine.push(0);
 
-                collision[x + "-" + y] = new THREE.Box3(
+                collision[x + "-" + y] = [ new THREE.Box3(
                     new THREE.Vector3(x, 0, y),
                     new THREE.Vector3(x + 1, 1, y + 1),
-                );
+                ) ];
             } else {
                 pathFindLine.push(1);
             }
@@ -459,8 +459,8 @@ function maze_buildMaze(scene) {
     // Ereklyék
     var lootPos = maze.lootPos
 
-    var statue = res.statue.data.clone();
-    statue.position.set(MAZE_LAYOUT.artifact.statue.x + 0.5, 0, MAZE_LAYOUT.artifact.statue.y + 0.5);
+    var statueObject = res.statue.data.clone();
+    statueObject.position.set(MAZE_LAYOUT.artifact.statue.x + 0.5, 0, MAZE_LAYOUT.artifact.statue.y + 0.5);
     var statueMaterial = new THREE.MeshPhongMaterial({
         color: 0xaaaaff,
         specular: 0x050505,
@@ -468,13 +468,13 @@ function maze_buildMaze(scene) {
         envMap: res.envmap.data,
         reflectivity: 0.5
     });
-    statue.traverse(function(e) {
+    statueObject.traverse(function(e) {
         e.material = statueMaterial;
     })
-
-    scene.add(statue);
+    scene.add(statueObject);
 
     var artifacts = [];
+    var artifactGhosts = [];
     for (var e = 0; e < MAZE_LAYOUT.artifact.artifacts.length; e++) {
         var apos = MAZE_LAYOUT.artifact.artifacts[e];
 
@@ -483,6 +483,7 @@ function maze_buildMaze(scene) {
         artifact.mode = "TARGET";
         artifact.data.position.set(apos.x + 0.5, 0.5, apos.y + 0.5)
         scene.add(artifact.data);
+        artifactGhosts.push(artifact);
 
         var spawnPosIndex;
         var pos;
@@ -556,6 +557,68 @@ function maze_buildMaze(scene) {
         }
     }
 
+    // Kijárat
+    var exitDoor = res.exit_door.data.clone();
+    exitDoor.name = "EXIT";
+
+    exitDoor.layers.enable(0);
+    exitDoor.layers.enable(2);
+
+    exitDoor.position.set(MAZE_LAYOUT.exit.door.x + 0.5, 0.5, MAZE_LAYOUT.exit.door.y + 0.5);
+
+    var exitDoorCollider = new THREE.Box3(
+        new THREE.Vector3(MAZE_LAYOUT.exit.door.x, 0, MAZE_LAYOUT.exit.door.y + 0.4),
+        new THREE.Vector3(MAZE_LAYOUT.exit.door.x + 1, 1, MAZE_LAYOUT.exit.door.y + 0.6),
+    ); 
+    collision[MAZE_LAYOUT.exit.door.x + "-" + MAZE_LAYOUT.exit.door.y] = [ exitDoorCollider ];
+
+    var doorMaterial = new THREE.MeshPhongMaterial({
+        color: 0xFFFFFF,
+        map: res.exit_door_texture.data
+    });
+    exitDoor.material = doorMaterial;
+    exitDoor.traverse(function (child) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.material = doorMaterial;
+        child.name = "EXIT";
+
+        child.layers.enable(0);
+        child.layers.enable(2);
+    });
+    scene.add(exitDoor);
+
+    var exitDoorTweenData = { x: 0, collider: exitDoorCollider, object: exitDoor }
+    var exitDoorTween = new TWEEN.Tween(exitDoorTweenData)
+        .to({ x: 0.9 }, 1000)
+        .onUpdate(function () {
+            exitDoorTweenData.collider.min.x = MAZE_LAYOUT.exit.door.x + exitDoorTweenData.x;
+            exitDoorTweenData.collider.max.x = MAZE_LAYOUT.exit.door.x + 1 + exitDoorTweenData.x;
+            exitDoorTweenData.object.position.x = MAZE_LAYOUT.exit.door.x + 0.5 + exitDoorTweenData.x;
+        });
+
+    // Kupa
+    var cup = res.cup.data
+    cup.scene.layers.enable(0);
+    cup.scene.layers.enable(2);
+    cup.scene.traverse(function(e) {
+        e.layers.enable(0);
+        e.layers.enable(2);
+
+        if (e.material != null){
+            e.material.envMap = res.envmap.data;
+            e.material.metalness = 0.5;
+        }
+    })
+    scene.add(cup.scene);
+    cup.scene.position.set(MAZE_LAYOUT.exit.cup.x + 0.5, 0, MAZE_LAYOUT.exit.cup.y + 0.5)
+    cup.scene.rotation.set(0, Math.PI / 2, 0);
+
+    collision[MAZE_LAYOUT.exit.cup.x + "-" + MAZE_LAYOUT.exit.cup.y] = [ new THREE.Box3(
+        new THREE.Vector3(MAZE_LAYOUT.exit.cup.x + 0.2, 0, MAZE_LAYOUT.exit.cup.y + 0.2),
+        new THREE.Vector3(MAZE_LAYOUT.exit.cup.x + 0.8, 1, MAZE_LAYOUT.exit.cup.y + 0.8),
+    ) ];
+
     // Pálya kész
     var maze = {
         meshes: [
@@ -563,7 +626,13 @@ function maze_buildMaze(scene) {
             wallMesh
         ],
         collision: collision,
-        artifacts: [],
+        artifacts: artifacts,
+        artifactGhosts: artifactGhosts,
+        statue: statueObject,
+        exitDoor: {
+            object: exitDoor,
+            open: exitDoorTween
+        },
         pathFind: new Graph(pathFind, { diagonal: true })
     }
 
@@ -593,11 +662,11 @@ function maze_createStatueMaterial(obj, key) {
 
 function maze_cornerToRotY(obj, corner) {
     if (corner.x > 0) {
-        obj.rotation.set(0, Math.PI, 0);
+        obj.rotation.set(0, -Math.PI, 0);
     } else if (corner.y < 0) {
-        obj.rotation.set(0, Math.PI / 2, 0);
-    } else if (corner.y > 0) {
         obj.rotation.set(0, -Math.PI / 2, 0);
+    } else if (corner.y > 0) {
+        obj.rotation.set(0, Math.PI / 2, 0);
     }
 }
 
@@ -620,7 +689,9 @@ function maze_getCollisionBoxes(maze, centerX, centerY, range = 2) {
                 continue;
             }
 
-            boxes.push(cell)
+            cell.forEach(e => {
+                boxes.push(e); 
+            });
         }
     }
 

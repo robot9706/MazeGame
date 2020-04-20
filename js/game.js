@@ -13,8 +13,15 @@ var deathReset = false;
 
 var reflectionCamera;
 
+var artifactsFound;
+var hasKey = true;
+
+var enemy;
+
 function game_start() {
     isPicking = false;
+    artifactsFound = 0;
+    hasKey = false;
 
     // Részecske shader betöltés
     particles_init();
@@ -84,10 +91,10 @@ function game_start() {
 
     // Játékos elhelyezése
     camera.position.set(MAZE_LAYOUT.playerSpawn.x + 0.5, 0.65, MAZE_LAYOUT.playerSpawn.y + 0.5);
-    camera.rotation.set(0,0,0);
+    camera.rotation.set(0, 0, 0);
 
     // Ellenfél
-    skeleton_create(new THREE.Vector3(MAZE_LAYOUT.enemySpawn.x + 0.5, 0, MAZE_LAYOUT.enemySpawn.y + 0.5));
+    enemy = skeleton_create(new THREE.Vector3(MAZE_LAYOUT.enemySpawn.x + 0.5, 0, MAZE_LAYOUT.enemySpawn.y + 0.5));
 }
 
 function game_addDeath(val) {
@@ -104,10 +111,19 @@ function game_addDeath(val) {
 }
 
 // Játék végénél kulcs megjelenítése
-function game_end() {
-    var key = res.key.data.clone();
+function game_spawnKey() {
+    // Szobor, és ereklyék törlése
+    enemy.object.visible = false;
 
-    var newMaterial = new THREE.MeshPhongMaterial( { 
+    // Kulcs
+    var keyGroup = new THREE.Group();
+    keyGroup.name = "KEY";
+
+    var key = res.key.data.clone();
+    key.name = "KEY";
+    keyGroup.add(key);
+
+    var newMaterial = new THREE.MeshPhongMaterial({
         color: 0xFFD700,
         specular: 0x888888,
         specularMap: res.grass_specular.data
@@ -116,45 +132,36 @@ function game_end() {
     key.traverse(function (child) {
         child.castShadow = true;
         child.material = newMaterial;
-
+        child.name = "KEY";
         child.uvsNeedUpdate = true;
+
+        child.layers.enable(0);
+        child.layers.enable(2);
     });
     key.material.needsUpdate = true;
     key.needsUpdate = true;
 
-    key.position.set(1.5, 0.5, 1.5);
-    scene.add(key);
+    key.layers.enable(0);
+    key.layers.enable(2);
 
     var light = new THREE.PointLight(0xFFD700, 0.6, 1);
-    key.add(light);
+    keyGroup.add(light);
+
+    keyGroup.position.set(MAZE_LAYOUT.artifact.key.x + 0.5, 0.5, MAZE_LAYOUT.artifact.key.y + 0.5);
+    scene.add(keyGroup);
+
+    particles_key(keyGroup.position);
 
     var tweenData = { x: 0, target: key }
     var tween = new TWEEN.Tween(tweenData)
         .to({ x: 1 }, 5000)
-        .repeat( Infinity )
-        .onUpdate(function() {
-            tweenData.target.position.y = 0.4 + Math.sin(tweenData.x * Math.PI * 2) * 0.1;
+        .repeat(Infinity)
+        .onUpdate(function () {
+            tweenData.target.position.y = -0.2 + Math.sin(tweenData.x * Math.PI * 2) * 0.1;
             tweenData.target.rotation.y = Math.PI * 2 * tweenData.x;
         });
     tween.start();
 }
-
-// Választ egy még nem felvett ereklyét és elhelyezi a kezdő zónába a szellemét
-/*function game_selectArtifact() {
-    var artifacts = currentMaze.artifacts;
-    if (artifacts.length == 0) {
-        game_end();
-        return;
-    }
-
-    var index = Math.floor(Math.random() * artifacts.length);
-    var artifact = artifacts[index];
-
-    artifactGhost = artifact_create(artifact, true);
-
-    artifactGhost.data.position.set(1.5, 0.5, 1.5)
-    scene.add(artifactGhost.data)
-}*/
 
 function game_update(delta) {
     if (delta > 1 / 24) {
@@ -188,13 +195,15 @@ function game_update(delta) {
     // Részecskék
     particles_update(delta);
 
-	// Raycaster segítségével keresek egy ereklyét amire a camera néz
+    // Raycaster segítségével keresek egy ereklyét amire a camera néz
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
     raycaster.layers.set(2);
     var intersects = raycaster.intersectObjects(scene.children, true);
     var selectedObject = null;
+    var selectedKey = null;
+    var selectedExit = null;
     for (var i = 0; i < intersects.length; i++) {
-        if (intersects[i].distance >= 1 || intersects[i].object.parent == null) {
+        if (intersects[i].distance >= 1 || intersects[i].object.parent == null || !intersects[i].object.parent.visible) {
             continue;
         }
 
@@ -202,9 +211,34 @@ function game_update(delta) {
             selectedObject = intersects[i].object.parent;
             break;
         }
+
+        if (intersects[i].object.name == "KEY") {
+            selectedKey = intersects[i].object;
+            break;
+        }
+
+        if (intersects[i].object.name == "EXIT" && hasKey) {
+            selectedExit = intersects[i].object;
+            break;
+        }
     }
 
-    pickSprite.visible = (selectedObject != null);
+    pickSprite.visible = (selectedObject != null || selectedKey != null || selectedExit != null);
+
+    if (selectedKey != null) {
+        if ((input_isDown("PICK") || input_isDown("PICK_MOUSE"))) {
+            selectedKey.visible = false;
+            hasKey = true;
+        }
+    }
+
+    if (selectedExit != null) {
+        if ((input_isDown("PICK") || input_isDown("PICK_MOUSE"))) {
+            hasKey = false;
+
+            currentMaze.exitDoor.open.start();
+        }
+    }
 
     if (selectedObject != null) {
         if ((input_isDown("PICK") || input_isDown("PICK_MOUSE"))) {
@@ -226,12 +260,20 @@ function game_update(delta) {
 
 function game_artifactPick(current) {
     if (current.artifact.mode == "TARGET") {
-        if (pickedArtifact != null && current.artifact.tag == pickedArtifact.artifact.tag) {
-            pickedArtifact.artifact.data.visible = false;
+        if (current.artifact.isGhost) {
+            if (pickedArtifact != null && current.artifact.tag == pickedArtifact.artifact.tag) {
+                pickedArtifact.artifact.data.visible = false;
 
-            current.artifact.isGhost = false;
-        } else {
-            current.artifact.red.start();
+                current.artifact.isGhost = false;
+
+                artifactsFound++;
+
+                if (artifactsFound >= currentMaze.artifacts.length) {
+                    game_spawnKey();
+                }
+            } else {
+                current.artifact.red.start();
+            }
         }
     } else if (current.artifact.mode == "PICKUP") {
         if (pickedArtifact != null) {
@@ -241,44 +283,4 @@ function game_artifactPick(current) {
         current.artifact.isGhost = true;
         pickedArtifact = current;
     }
-
-    /*if (current.artifact === artifactGhost) { // Szellemre kattintás?
-        if (pickedArtifact != null) {
-            var pickedID = parseInt(pickedArtifact.artifact.mesh.name);
-            var wantedID = parseInt(artifactGhost.mesh.name);
-
-            if (pickedID == wantedID) { // Jó a felvett ereklye?
-                artifactGhost.data.visible = false;
-                pickedArtifact.visible = false;
-
-                artifactGhost.animation.stop();
-                pickedArtifact.artifact.animation.stop();
-
-                var artifacts = currentMaze.artifacts;
-                for (var i = 0; i < artifacts.length; i++) {
-                    if (artifacts[i].data === pickedArtifact) {
-                        artifacts.splice(i, 1);
-                        break;
-                    }
-                }
-
-                pickedArtifact = null;
-
-                game_selectArtifact();
-            } else {
-                artifactGhost.mesh.material.color.set(0xFF0000);
-                artifactGhostColorReset = 2;
-            }
-        } else {
-            artifactGhost.mesh.material.color.set(0xFF0000);
-            artifactGhostColorReset = 2;
-        }
-    } else { // Ereklyére kattintás
-        if (pickedArtifact != null) {
-            pickedArtifact.artifact.isGhost = false;
-        }
-
-        current.artifact.isGhost = true;
-        pickedArtifact = current;
-    }*/
 }

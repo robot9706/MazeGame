@@ -1,5 +1,6 @@
 var gunsprite;
 
+// Állapot -> Animációs fázisok (x,y,w,h a képen)
 var gunframes = {
     IDLE: [
         { x: 0, y: 0, w: 79, h: 60 }
@@ -50,8 +51,7 @@ function shotgun_init() {
     shotgun_updateframe();
 }
 
-function shotgun_updateframe()
-{
+function shotgun_updateframe() {
     var frame = gunframes[gunstate][gunanim.frame];
 
     guntex.offset.set(frame.uvx, 1.0 - frame.uvy - frame.uvh);
@@ -64,8 +64,7 @@ function shotgun_updateframe()
     gunsprite.position.set(0, -HEIGHT / 2 + height / 2, 1);
 }
 
-function shotgun_update(time) 
-{
+function shotgun_update(time) {
     gunanim.time += time;
     if (gunanim.time >= GUN_FRAME_TIME) {
         gunanim.time = 0;
@@ -79,8 +78,7 @@ function shotgun_update(time)
     }
 }
 
-function shotgun_shot(targetRaytrace)
-{
+function shotgun_shot(targetRaytrace) {
     if (gunstate == "IDLE") {
         gunstate = "SHOOT";
 

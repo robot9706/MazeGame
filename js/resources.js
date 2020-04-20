@@ -66,6 +66,18 @@ var res = {
     water_normal: {
         type: "texture",
         data: null
+    },
+    exit_door: {
+        type: "obj",
+        data: null
+    },
+    exit_door_texture: {
+        type: "texture",
+        data: null
+    },
+    cup: {
+        type: "gltf",
+        data: null
     }
 };
 var keys = Object.keys(res);
@@ -83,6 +95,8 @@ function resources_load(callback) {
 }
 
 function resources_doLoad(index) {
+    document.getElementById("load_text").innerText = "Töltés... " + Math.round((index / keys.length) * 100) + "%";
+
     if (index >= keys.length) {
         onDone();
     } else {

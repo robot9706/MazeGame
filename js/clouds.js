@@ -1,5 +1,5 @@
 function clouds_createMesh(geom) {
-    var meshMaterial = new THREE.MeshBasicMaterial({color: 0xFFFFFF});
+    var meshMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
     var mesh = new THREE.Mesh(geom, meshMaterial);
     return mesh;
 }
@@ -43,7 +43,7 @@ function clouds_create(scene) {
 
     for (var i = 0; i < 10; i++) {
         var rndCloud = clouds_randomCloud();
-        rndCloud.scale.set(2,2,2);
+        rndCloud.scale.set(2, 2, 2);
         rndCloud.position.set(clouds_random(centerPos, sizeDev), 75, clouds_random(centerPos, sizeDev));
         rndCloud.layers.set(1);
         scene.add(rndCloud);

@@ -42,8 +42,8 @@ const MAZE_LAYOUT = {
         y: 3
     },
     enemySpawn: {
-        x: 7,
-        y: 14
+        x: 2,
+        y: 5
     },
     artifact: {
         statue: {
@@ -54,6 +54,20 @@ const MAZE_LAYOUT = {
             { x: 6, y: 1 },
             { x: 8, y: 1 },
             { x: 7, y: 2 }
-        ]
+        ],
+        key: {
+            x: 7,
+            y: 3
+        }
+    },
+    exit: {
+        door: {
+            x: 7,
+            y: 17
+        },
+        cup: {
+            x: 7,
+            y: 19
+        }
     }
 }

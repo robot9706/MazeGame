@@ -20,7 +20,7 @@ function skeleton_create(pos) {
     var skele = res.skeleton_animated.data
     skele.scene.layers.enable(0);
     skele.scene.layers.enable(2);
-    skele.scene.traverse(function(e) {
+    skele.scene.traverse(function (e) {
         e.layers.enable(0);
         e.layers.enable(2);
 
@@ -93,7 +93,11 @@ function skeleton_update(time) {
 
     if (skeletons.length > 0) {
         skeletons.forEach(s => {
-            if (s.stuntime > 0) {
+            if (!s.object.visible) { // Él még a csontváz?
+                return;
+            }
+
+            if (s.stuntime > 0) { // Ki van ütve?
                 s.stuntime -= time;
                 return;
             }
@@ -101,18 +105,18 @@ function skeleton_update(time) {
             var target;
 
             var dist = s.object.position.distanceTo(player);
-            if (dist < 0.9) {
-                game_addDeath(1.5 * time);
+            if (dist < 0.9) { // Ha közel van a játékoshoz, csökkenti az életerőt
+                game_addDeath(0.75 * time);
             }
 
-            if (dist < 1.5) {
+            if (dist < 1.5) { // Ha elég közel van a játékoshoz, nem kell útkeresés
                 target = new THREE.Vector3(player.x, 0, player.z);
-            } else {
-                if (s.path != null && s.pathPlayer.x == playerX && s.pathPlayer.z == playerZ && s.pathTarget < s.path.length) {
+            } else { // Ha messze van, utat kell keresni
+                if (s.path != null && s.pathPlayer.x == playerX && s.pathPlayer.z == playerZ && s.pathTarget < s.path.length) { // Az út érvényes és aktív?
                     target = new THREE.Vector3(s.path[s.pathTarget].y + 0.5, 0, s.path[s.pathTarget].x + 0.5);
                     var dist = s.object.position.distanceTo(target);
 
-                    if (dist < 0.05) {
+                    if (dist < 0.05) { // Ha elég közel van az út adott pontjához, a cél legyen a következő pont
                         s.pathTarget++;
                         if (s.pathTarget >= s.path.length) {
                             s.path = null;
@@ -123,19 +127,21 @@ function skeleton_update(time) {
                     var skeleX = Math.floor(s.object.position.x);
                     var skeleZ = Math.floor(s.object.position.z);
 
+                    // A* útkeresés
                     var path = astar.search(currentMaze.pathFind, currentMaze.pathFind.grid[skeleZ][skeleX], currentMaze.pathFind.grid[playerZ][playerX]);
                     s.path = path
                     s.pathTarget = 0
                     s.pathPlayer.x = playerX
                     s.pathPlayer.z = playerZ
 
-                    target = new THREE.Vector3(0,0,0);
+                    target = new THREE.Vector3(0, 0, 0);
                 }
             }
 
+            // Forgás animációja
             var rotation = s.object.rotation.clone();
             s.object.lookAt(target.x, 0, target.z);
-            s.object.rotateOnAxis(new THREE.Vector3(0,1,0), -Math.PI / 2);
+            s.object.rotateOnAxis(new THREE.Vector3(0, 1, 0), -Math.PI / 2);
             var targetRotation = s.object.rotation.clone();
 
             var quat = new THREE.Quaternion();
@@ -148,12 +154,13 @@ function skeleton_update(time) {
 
             s.object.setRotationFromQuaternion(quat);
 
+            // Mozgás animációja
             var dir = new THREE.Vector3();
             dir.copy(target);
             dir.sub(s.object.position);
             dir.normalize();
 
-            var newPos = skeleton_handleMove(s.object.position, dir, 1, time);
+            var newPos = skeleton_handleMove(s.object.position, dir, 1.2, time); // Ütközés a környezettel
             if (newPos != null) {
                 s.object.position.copy(newPos);
             }

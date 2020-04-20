@@ -26,19 +26,19 @@ function input_init() {
     input_addInput("PICK", 32);
     input_addInput("PICK_MOUSE", -1);
 
-    document.addEventListener("keydown", function(e) {
+    document.addEventListener("keydown", function (e) {
         //console.log(e.keyCode);
         input_set(e.keyCode, true);
     });
-    document.addEventListener("keyup", function(e) {
+    document.addEventListener("keyup", function (e) {
         input_set(e.keyCode, false);
     });
-    document.addEventListener("mousedown", function(e) {
+    document.addEventListener("mousedown", function (e) {
         if (e.button == 0) {
             input_set(-1, true);
         }
     });
-    document.addEventListener("mouseup", function(e) {
+    document.addEventListener("mouseup", function (e) {
         if (e.button == 0) {
             input_set(-1, false);
         }

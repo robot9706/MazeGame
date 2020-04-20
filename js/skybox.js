@@ -17,7 +17,7 @@ function skybox_init(scene) {
 
     var geometry = new THREE.SphereGeometry(0.5, 32, 32);
     skybox = new THREE.Mesh(geometry, material);
-    skybox.scale.set(200,200,200);
+    skybox.scale.set(200, 200, 200);
 
     scene.add(skybox);
 }

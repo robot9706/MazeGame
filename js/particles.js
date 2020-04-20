@@ -5,6 +5,9 @@ const PARTICLE_POS_STD = 0.2
 
 const PARTICLE_ARTIFACT_POS_STD = 0.5
 
+const PARTICLE_ARTIFACT_KEY_STD_XZ = 0.75
+const PARTICLE_ARTIFACT_KEY_STD_Y = 0.5
+
 var particleAlphaShader;
 
 function particles_init() {
@@ -56,9 +59,42 @@ function particles_gun(position) {
     tween.start();
 }
 
+function particles_key(position) {
+    var particles = new THREE.Geometry();
+    var material = new THREE.PointsMaterial({
+        color: 0xFFCC00,
+        size: PARTICLE_SIZE,
+        map: res.point_particle.data,
+        transparent: true,
+        opacity: 0.8,
+        blending: THREE.AdditiveBlending,
+    });
+
+    for (var p = 0; p < PARTICLE_COUNT_GUN; p++) {
+        var pX = Math.random() * PARTICLE_ARTIFACT_KEY_STD_XZ - (PARTICLE_ARTIFACT_KEY_STD_XZ / 2),
+            pY = Math.random() * PARTICLE_ARTIFACT_KEY_STD_Y - (PARTICLE_ARTIFACT_KEY_STD_Y / 2),
+            pZ = Math.random() * PARTICLE_ARTIFACT_KEY_STD_XZ - (PARTICLE_ARTIFACT_KEY_STD_XZ / 2);
+        particles.vertices.push(new THREE.Vector3(pX, pY, pZ));
+    }
+
+    var particleSystem = new THREE.Points(particles, material);
+    particleSystem.position.copy(position);
+    particleSystem.sortParticles = true;
+    scene.add(particleSystem);
+
+    var tweenData = { x: 0, target: particleSystem, startY: position.y }
+    var tween = new TWEEN.Tween(tweenData)
+        .to({ x: 1 }, 5000)
+        .onUpdate(function () {
+            tweenData.target.position.y = tweenData.startY + tweenData.x * 0.1
+            tweenData.target.material.opacity = (1.0 - tweenData.x) * 0.8
+        });
+    tween.start();
+}
+
 function particles_artifact() {
     var particles = new THREE.BufferGeometry();
-    var alphas = new Float32Array(PARTICLE_COUNT_GUN);
+    var alphas = new Float32Array(PARTICLE_COUNT_GUN); // Saját attribútum mely kezdeti átlátszóságokat tárol, ezzel "randomabb" lesz a részekcske animáció, mely a shaderben történik
     var positions = new Float32Array(PARTICLE_COUNT_GUN * 3);
 
     for (var p = 0; p < PARTICLE_COUNT_GUN; p++) {
@@ -80,5 +116,5 @@ function particles_artifact() {
 }
 
 function particles_update(time) {
-    particleAlphaShader.uniforms.time.value += time;
+    particleAlphaShader.uniforms.time.value += time; // Átlátszóság animáció shaderből
 }
